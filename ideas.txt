@@ -1,0 +1,39 @@
+DB structure:
+
+class // Every class (e.q. b-itb4-1c) gets their own row here
+  id int, auto increment
+  name string // b-itb4-1c
+  icsid // Id needed to fetch the schedule, 14327
+
+student
+  id int, auto increment
+  cardid varchar(255) // Not sure what length it is going to be. 
+  name string // Voornaam
+  telaatpas bool
+
+schedule_item // Every schedule/rooster item gets a new row in here. Old ones are kept. 
+  id int, auto increment
+  cid int // Class ID
+  day int // Day of week
+  start int // Seconds from the beginning of the day (0:00) when the item starts
+  end int // See above (but now for the end of the item)
+  created int // UnixTime when this item for created 
+  usestopped int // UnixTime when this item has become deprecated. (items that are currently used have got a value of 0 for this)
+  name string // ned,daa,prg, etc
+  location string // 
+  with string // Teacher
+
+class_item // Every class with 'aanwezigen' gets a row. 
+  id int, auto increment
+  siid // ScheduleItem id
+  max_students int
+
+attended // Every person attending every class will get a new row here.
+  id int, auto increment
+  ciid // Class Item ID
+  sid // Student ID
+  mins_early // Amount of minutes that the student was early. When student is too late it will become a negative int. 
+
+
+To do:
+
