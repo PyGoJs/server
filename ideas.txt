@@ -36,4 +36,10 @@ attended // Every person attending every class will get a new row here.
 
 
 To do:
-
+/client/inchecken
+  Check if the schedule should be updated/fetched. 
+    Detect item changes and save them.
+  Validation
+    Has the person checking in even got class (now, or in the next 15 minutes)? 
+  Save the person as checked in (make new 'attended' item in db)
+  Return JSON (aceepted bool. error int, minTillStart int, attendies[ rfid int, name string, telaatPas bool ])
