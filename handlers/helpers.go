@@ -12,8 +12,9 @@ type pageError struct {
 	ErrStr string `json:"error,omitempty"`
 }
 
+// writeJSON writes the given struct (v) on the given http ResponseWriter in JSON format.
+// A time object is used for determining last-modified (headers).
 // https://sourcegraph.com/blog/google-io-2014-building-sourcegraph-a-large-scale-code-search-engine-in-go
-// lm: Last Modified
 func writeJSON(w http.ResponseWriter, r *http.Request, v interface{}, lm time.Time) error {
 
 	data, err := json.MarshalIndent(v, "", "    ")

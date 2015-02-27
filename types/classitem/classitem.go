@@ -2,10 +2,14 @@ package classitem
 
 import (
 	"database/sql"
+	"fmt"
 	"log"
 	"time"
+
+	"github.com/pygojs/server/types/class"
 )
 
+// SchedItem contains the facts about the class's schedule (what, where, with, when).
 type SchedItem struct {
 	Id       int
 	StartInt int `sql:"start"`
@@ -17,33 +21,24 @@ type SchedItem struct {
 	Staff string
 }
 
+// ClassItem only exists when there is at least one student attending the SchedItem.
+// MaxStudents is saved because illness and because the amount of students in a class can change.
 type ClassItem struct {
 	Id          int
 	MaxStudents int `sql:"max_students"`
 	Sched       SchedItem
 }
 
-/*
-To do:
-Fetch schedule item
-Create class_item if it does not exists
-Return class_item with schedItem embedded
-
-Maybe merge scheditem.go and classitem.go ?
-
-*/
-
-func Fetch(cid int, tm time.Time, db *sql.DB) (ClassItem, error) {
+// Fetch returns the current or next classitem for the given ClassId.
+func Fetch(c class.Class, tm time.Time, db *sql.DB) (ClassItem, error) {
 	end := tm.Unix()
 
-	var s SchedItem
-	var c ClassItem
+	var si SchedItem
+	var ci ClassItem
 
-	var ciId sql.NullInt64
-	var ciMs sql.NullInt64 // Class_Item.Max_Students
-
-	// SELECT s.id, s.day, s.start, s.end, s.description, s.staff FROM schedule_item AS s WHERE s.start>=? AND s.end<=? AND s.usestopped=0 AND s.cid=?;
-	// "SELECT s.id, s.day, s.start, s.end, s.description, s.staff, c.id, c.max_students FROM schedule_item AS s, class_item as c WHERE s.id = c.siid AND s.start<=? AND s.end>=? AND s.usestopped=0 AND s.cid=?;"
+	// It is not certain whether a classItem for the schedItem exists or not.
+	var ciId sql.NullInt64 // ClassItem.Id
+	var ciMs sql.NullInt64 // ClassItem.MaxStudents
 
 	err := db.QueryRow(`
 SELECT s.id, s.start, s.description, s.staff, class_item.id, class_item.max_students
@@ -54,7 +49,7 @@ ON s.id = class_item.siid
  AND s.usestopped=0 
  AND s.cid=?
  ORDER BY s.start LIMIT 1;
-	`, end, cid).Scan(&s.Id, &s.StartInt, &s.Desc, &s.Staff, &ciId, &ciMs)
+	`, end, c.Id).Scan(&si.Id, &si.StartInt, &si.Desc, &si.Staff, &ciId, &ciMs)
 
 	if err != nil {
 		log.Println("Error classitem.Fetch: ", err)
@@ -62,14 +57,26 @@ ON s.id = class_item.siid
 	}
 
 	if ciId.Valid {
-		c.Id = int(ciId.Int64)
-		c.MaxStudents = int(ciMs.Int64)
+		ci.Id = int(ciId.Int64)
+		ci.MaxStudents = int(ciMs.Int64)
+	} else {
+		// If no ClassItem from query above, insert it.
+		maxStu, _ := class.MaxStudents(c, db)
+		r, err := db.Exec("INSERT INTO class_item (siid, cid, max_students) VALUES (?, ?, ?);", si.Id, c.Id, maxStu)
+
+		if err != nil {
+			log.Println("ERROR, cannot insert new class_item in classitem.Fetch, err:", err)
+		}
+
+		id, _ := r.LastInsertId()
+		ci.Id = int(id)
+		ci.MaxStudents = maxStu
+
+		fmt.Println(" Created classitem succesfully", ci.Id, ci.MaxStudents)
 	}
 
-	// To do: If no ClassItem from query above, insert it.
+	si.Start = time.Unix(int64(si.StartInt), 0)
 
-	s.Start = time.Unix(int64(s.StartInt), 0)
-
-	c.Sched = s
-	return c, nil
+	ci.Sched = si
+	return ci, nil
 }

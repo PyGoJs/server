@@ -9,8 +9,8 @@ import (
 	"github.com/pygojs/server/util"
 
 	"github.com/pygojs/server/types/attendee"
+	"github.com/pygojs/server/types/class"
 	"github.com/pygojs/server/types/classitem"
-	"github.com/pygojs/server/types/student"
 )
 
 type pageCheckin struct {
@@ -20,8 +20,11 @@ type pageCheckin struct {
 	Attendees    []att.Att `json:"attendees,omitempty"`
 }
 
+// Checkin should be read as check-in (not as "I'm there like checkin' out this nub's project")
 func Checkin(w http.ResponseWriter, r *http.Request) {
 
+	// Sleep for given amount of milliseconds when get variable 'sleep' is set.
+	// (Looks complicated (or just confusing) because of checking if valid int and time parsing.)
 	if sleep, err := strconv.Atoi(r.FormValue("sleep")); err == nil && sleep > 0 {
 		if dur, err := time.ParseDuration(strconv.Itoa(sleep) + "ms"); err == nil {
 			time.Sleep(dur)
@@ -30,9 +33,9 @@ func Checkin(w http.ResponseWriter, r *http.Request) {
 
 	var err error
 
-	var cid int
+	var clid int
 	var rfid string
-	if cid, err = strconv.Atoi(r.FormValue("clientid")); err != nil {
+	if clid, err = strconv.Atoi(r.FormValue("clientid")); err != nil {
 		writeJSON(w, r, pageError{ErrStr: "invalid clientid"}, time.Time{})
 		return
 	}
@@ -42,7 +45,7 @@ func Checkin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_ = cid
+	_ = clid
 
 	db, err := util.Db()
 	if err != nil {
@@ -51,7 +54,7 @@ func Checkin(w http.ResponseWriter, r *http.Request) {
 	}
 	defer db.Close()
 
-	s, err := stu.Fetch(rfid, db)
+	s, err := att.FetchStu(rfid, db)
 
 	// Student not found. Because of that don't know classItem so can't give minTillStart or attendees.
 	if err != nil {
@@ -68,7 +71,11 @@ func Checkin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	c, err := classitem.Fetch(s.Cid, time.Now(), db)
+	// Class
+	c := class.Fetch(s.Cid)
+
+	// ClassItem
+	ci, err := classitem.Fetch(c, time.Now(), db)
 
 	// ClassItem not found (no class item for student?).
 	if err != nil {
@@ -76,7 +83,7 @@ func Checkin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	minTillStart := int(c.Sched.Start.Sub(time.Now()).Minutes())
+	minTillStart := int(ci.Sched.Start.Sub(time.Now()).Minutes())
 
 	// Too long until next class
 	if minTillStart > 15 {
@@ -91,7 +98,10 @@ func Checkin(w http.ResponseWriter, r *http.Request) {
 
 	// TO DO: create class item if it doesn't exist (only do this if minTillStart !> 15, so not above)
 	if r.FormValue("save") != "" {
-		att.Attent(s, c, minTillStart, db)
+		/*if ci.Id == 0 {
+			classitem.Create(ci.Sched, db)
+		}*/
+		att.Attent(s, ci, minTillStart, db)
 	}
 
 	p := pageCheckin{
@@ -100,7 +110,7 @@ func Checkin(w http.ResponseWriter, r *http.Request) {
 
 	if r.FormValue("attendees") != "" {
 		p.MinTillStart = minTillStart
-		atts, _ := att.Fetchs(c, db)
+		atts, _ := att.Fetchs(ci, db)
 		p.Attendees = atts
 	}
 
