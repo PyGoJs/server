@@ -2,6 +2,7 @@ package att
 
 import (
 	"database/sql"
+	"errors"
 	"log"
 	"strconv"
 	"strings"
@@ -11,9 +12,9 @@ import (
 
 // Attendee
 type Att struct {
-	Id        int  `json:"-"`
-	Ciid      int  `json:"ciid,omitempty"`
-	Sid       int  `json:",omitempty"`
+	Id int `json:"-"`
+	//Ciid int `json:"ciid,omitempty"`
+	//Sid       int  `json:",omitempty"`
 	Attent    bool `json:"attent"`
 	MinsEarly int  `sql:"mins_early" json:"minsEarly,omitempty"`
 	Stu       Stu  `json:"stu"`
@@ -48,20 +49,25 @@ func FetchStu(rfid string, db *sql.DB) (Stu, error) {
 // Fetchs returns the attendees for the given classitem.
 // Not (yet) attending students are also given.
 func Fetchs(ci classitem.ClassItem, db *sql.DB) ([]Att, error) {
+
 	var atts []Att
 
-	// Lamers tought us this!11
+	// ClassItem can (or could) sometimes be empty, when fetched by classitem.Fetch
+	if ci.Id == 0 {
+		return atts, errors.New("cannot fetch attendees; invalid class_item")
+	}
 
 	// Fetch the attendee_item's and the students owning them.
-	rows, err := db.Query("SELECT attendee_item.id, attendee_item.mins_early, student.id, student.name, student.rfid FROM student, attendee_item WHERE attendee_item.ciid=? AND attendee_item.sid = student.id", ci.Id)
+	rows, err := db.Query("SELECT attendee_item.id, attendee_item.mins_early, student.id, student.name, student.rfid FROM student, attendee_item WHERE attendee_item.ciid=? AND attendee_item.sid = student.id;", ci.Id)
 
 	// It should only error during development, so I dare to 'handle' this error this way.
 	if err != nil {
-		log.Fatal(err)
+		log.Println("ERROR cannot fetch attendees in att.Fetchs, err:", err)
 		return atts, err
 	}
 
-	// Workaround, change it sometime.
+	// Workaround, change it sometime (the '0').
+	// Contains the StudentID's that already have an attendee item, and should not be fetched with the second query.
 	sids := []string{"0"}
 
 	// Loop over the fetched items, and put them into atts.
@@ -71,7 +77,7 @@ func Fetchs(ci classitem.ClassItem, db *sql.DB) ([]Att, error) {
 		err = rows.Scan(&a.Id, &a.MinsEarly, &s.Id, &s.Name, &s.Rfid)
 		if err != nil {
 			log.Fatal(err)
-			return []Att{}, nil
+			return []Att{}, err
 		}
 		a.Attent = true
 		a.Stu = s
@@ -82,7 +88,7 @@ func Fetchs(ci classitem.ClassItem, db *sql.DB) ([]Att, error) {
 	// Fetch the students that did/are not attent this.
 	rows, err = db.Query("SELECT student.name, student.rfid FROM student, class_item WHERE class_item.id = ? AND class_item.cid = student.cid AND student.id NOT IN ("+strings.Join(sids, ",")+") LIMIT 1337;", ci.Id)
 	if err != nil {
-		log.Fatal(err)
+		log.Println("ERROR cannot fetch students in att.Fetchs, err:", err)
 		return atts, err
 	}
 
@@ -93,7 +99,7 @@ func Fetchs(ci classitem.ClassItem, db *sql.DB) ([]Att, error) {
 		err = rows.Scan(&s.Name, &s.Rfid)
 		if err != nil {
 			log.Fatal(err)
-			return []Att{}, nil
+			return []Att{}, err
 		}
 		a.Attent = false
 		a.Stu = s
@@ -106,8 +112,13 @@ func Fetchs(ci classitem.ClassItem, db *sql.DB) ([]Att, error) {
 // Attent makes the given student attent the given classitem.
 // MinutesEarly is positive when the class is about to start, negative if the student is not on time.
 // The ID of the new attendee_item is returned.
-func Attent(s Stu, c classitem.ClassItem, minsEarly int, db *sql.DB) int64 {
-	r, err := db.Exec("INSERT INTO attendee_item (ciid, sid, mins_early) VALUES (?, ?, ?);", c.Id, s.Id, minsEarly)
+func Attent(s Stu, ci classitem.ClassItem, minsEarly int, db *sql.DB) int64 {
+	if ci.Id == 0 {
+		log.Println("ClassItem Id is 0")
+		return 0
+	}
+
+	r, err := db.Exec("INSERT INTO attendee_item (ciid, sid, mins_early) VALUES (?, ?, ?);", ci.Id, s.Id, minsEarly)
 	if err != nil {
 		log.Fatal(err)
 		return 0

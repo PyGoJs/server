@@ -74,8 +74,8 @@ func Checkin(w http.ResponseWriter, r *http.Request) {
 	// Class
 	c := class.Fetch(s.Cid)
 
-	// ClassItem
-	ci, err := classitem.Fetch(c, time.Now(), db)
+	// ClassItem, includes SchedItem. ClassItem can be empty, SchedItem may not.
+	ci, err := classitem.Next(c, time.Now(), db)
 
 	// ClassItem not found (no class item for student?).
 	if err != nil {
@@ -85,22 +85,22 @@ func Checkin(w http.ResponseWriter, r *http.Request) {
 
 	minTillStart := int(ci.Sched.Start.Sub(time.Now()).Minutes())
 
-	// Too long until next class
-	if minTillStart > 15 {
-		p := pageCheckin{
-			Accepted:     false,
-			Error:        2,
-			MinTillStart: minTillStart,
-		}
-		writeJSON(w, r, p, time.Time{})
-		return
-	}
-
-	// TO DO: create class item if it doesn't exist (only do this if minTillStart !> 15, so not above)
 	if r.FormValue("save") != "" {
-		/*if ci.Id == 0 {
-			classitem.Create(ci.Sched, db)
-		}*/
+		// Too long until next class
+		if minTillStart > 15 {
+			p := pageCheckin{
+				Accepted:     false,
+				Error:        2,
+				MinTillStart: minTillStart,
+			}
+			writeJSON(w, r, p, time.Time{})
+			return
+		}
+
+		// Create the classItem is there is none.
+		if ci.Id == 0 {
+			ci, _ = classitem.Create(ci.Sched, c, db)
+		}
 		att.Attent(s, ci, minTillStart, db)
 	}
 

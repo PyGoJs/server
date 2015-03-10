@@ -25,7 +25,7 @@ func main() {
 		"  ]             ~ ~             | \n" +
 		"  |                            |  \n" +
 		"   |                           |  \n")*/
-	//http.HandleFunc("/checkin", handlers.Checkin)
+
 	http.Handle("/checkin", logR(http.HandlerFunc(handlers.Checkin)))
 
 	log.Println("Started")
