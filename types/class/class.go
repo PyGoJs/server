@@ -3,18 +3,21 @@ package class
 import (
 	"database/sql"
 	"log"
+	"time"
 )
 
 type Class struct {
-	Id    int
-	Name  string
-	Icsid int
+	Id               int
+	Name             string
+	Icsid            int
+	SchedLastFetched time.Time
 }
 
 func Fetch(cid int) Class {
 	// This will be replaced with an actual query to the name and icsid in the future.
 	return Class{
-		Id: cid,
+		Id:               cid,
+		SchedLastFetched: time.Now(),
 	}
 }
 

@@ -9,7 +9,7 @@ import (
 	"github.com/pygojs/server/util"
 )
 
-func TestFetchAll(t *testing.T) {
+/*func TestFetchAll(t *testing.T) {
 	db, err := util.Db()
 	if err != nil {
 		t.Fail()
@@ -24,9 +24,9 @@ func TestFetchAll(t *testing.T) {
 	}
 
 	t.Log(sis)
-}
+}*/
 
-func TestUpdateSched(t *testing.T) {
+func TestUpdate(t *testing.T) {
 	db, err := util.Db()
 	if err != nil {
 		t.Fail()
@@ -35,7 +35,7 @@ func TestUpdateSched(t *testing.T) {
 
 	c := class.Class{Id: 1, Icsid: 14327}
 
-	err = UpdateSched(c, time.Now(), db)
+	err = Update(c, time.Now(), db)
 	if err != nil {
 		t.Fail()
 	}

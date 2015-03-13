@@ -127,3 +127,13 @@ func Attent(s Stu, ci classitem.ClassItem, minsEarly int, db *sql.DB) int64 {
 	lastid, _ := r.LastInsertId()
 	return lastid
 }
+
+func (s Stu) IsAttending(ci classitem.ClassItem, db *sql.DB) (int, error) {
+	var id int
+	err := db.QueryRow("SELECT id FROM attendee_item WHERE sid=? AND ciid=? LIMIT 1;", s.Id, ci.Id).Scan(&id)
+	if err != nil {
+		log.Println("ERROR while checking is student is attendee class_item, err:", err, s.Id, ci.Id)
+		return 0, err
+	}
+	return id, nil
+}

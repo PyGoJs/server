@@ -29,10 +29,10 @@ type SchedItem struct {
 
 // FetchAll returns all the SchedItems for a given class.
 // Used by updatesched.
-func FetchAll(class class.Class, db *sql.DB) ([]SchedItem, error) {
-	var sis []SchedItem
+func FetchAll(class class.Class, db *sql.DB) (Sched, error) {
+	var sis Sched
 
-	rows, err := db.Query("SELECT id, day, start, end, description, facility, staff FROM schedule_item WHERE cid=? AND usestopped=0 LIMIT 25;", class.Id)
+	rows, err := db.Query("SELECT id, day, start, end, description, facility, staff FROM schedule_item WHERE cid=? AND usestopped=0 LIMIT 50;", class.Id)
 	if err != nil {
 		log.Println("ERROR, cannot fetch schedule in schedule.FetchAll, err:", err)
 		return sis, err
@@ -47,7 +47,7 @@ func FetchAll(class class.Class, db *sql.DB) ([]SchedItem, error) {
 			return sis, err
 		}
 
-		sis = append(sis, si)
+		sis.Items = append(sis.Items, si)
 	}
 
 	return sis, nil

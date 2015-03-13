@@ -10,18 +10,18 @@ student
   name string // Voornaam
   rfid varchar(255) // Not sure what length it is going to be. 
   cid int // ClassId
-  telaatpas bool
+  //telaatpas bool
 
 schedule_item // Every schedule/rooster item gets a new row in here. Old ones are kept. 
   id int, auto increment
   cid int // Class ID
-  start int // UnixTimeStamp when the item starts
+  start int // Amount of seconds since start of the day when the item starts. 
   end int // See above (but now for the end of the item)
   created int // UnixTime when this item for created 
   usestopped int // UnixTime when this item has become deprecated. (items that are currently used have got a value of 0 for this)
-  name string // ned,daa,prg, etc
-  location string // 
-  with string // Teacher
+  description string // ned,daa,prg, etc
+  facility string // 6.55
+  staff string // lam
 
 class_item // Every class with 'aanwezigen' gets a row. 
   id int, auto increment
@@ -29,7 +29,7 @@ class_item // Every class with 'aanwezigen' gets a row.
   cid // Class Id
   max_students int
 
-attended // Every person attending every class will get a new row here.
+attendee_item // Every person attending every class will get a new row here.
   id int, auto increment
   ciid // Class Item ID
   sid // Student ID
@@ -39,13 +39,19 @@ attended // Every person attending every class will get a new row here.
 To do, roughly:
 /client/inchecken
   Check if the schedule should be updated/fetched. 
-    Detect item changes and save them.
++   Detect item changes and save them.
 + Validation
 +   Has the person checking in even got class (now, or in the next 15 minutes)? 
 + Save the person as checked in (make new 'attended' item in db)
 + Return JSON (aceepted bool. error int, minTillStart int, attendies[ rfid int, name string, telaatPas bool ])
 
 To do, less-roughly:
-+Create class struct and database. 
-+Merge package student and attendee
-+ClassItem.Fetch should insert a new classitem row in db if it doesn't exist. 
++Seperate method for creating new classitem if it doesn't exist. Only execute it when next class doesn't start in >15 minutes. 
++Start,end in schedule_item shouldn't hold the full UnixTimeStamp, but rather the amount of seconds since the start of that day. 
++  Find a way to parse that. 
++   Get the amount of seconds since the start of the current server-time-day, and add the start,end to that. 
+
+To do, less-roughly two:
++Refetch the schedule for class if it was last fetched >=30 minutes ago.
+ Save the week and year of class item also in database. 
+ 

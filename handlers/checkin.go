@@ -11,6 +11,7 @@ import (
 	"github.com/pygojs/server/types/attendee"
 	"github.com/pygojs/server/types/class"
 	"github.com/pygojs/server/types/classitem"
+	"github.com/pygojs/server/types/schedule"
 )
 
 type pageCheckin struct {
@@ -71,19 +72,44 @@ func Checkin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Time Now
+	tn := time.Now()
+
 	// Class
 	c := class.Fetch(s.Cid)
 
+	// Update the schedule if it was last fetched >=30 minutes ago.
+	if tn.Sub(c.SchedLastFetched).Minutes() >= 30 {
+		schedule.Update(c, tn, db)
+	}
+
 	// ClassItem, includes SchedItem. ClassItem can be empty, SchedItem may not.
-	ci, err := classitem.Next(c, time.Now(), db)
+	ci, err := classitem.Next(c, tn.AddDate(0, 0, -1), db)
 
 	// ClassItem not found (no class item for student?).
 	if err != nil {
-		writeJSON(w, r, pageError{ErrStr: "can't fetch schedule_item"}, time.Time{})
+		p := pageCheckin{
+			Accepted: false,
+			Error:    4,
+		}
+		writeJSON(w, r, p, time.Time{})
 		return
 	}
 
-	minTillStart := int(ci.Sched.Start.Sub(time.Now()).Minutes())
+	// Check if this student is already attending this class_item.
+	// When ci.Id is 0 nobody can be attending the class, so no need to check.
+	if ci.Id != 0 {
+		if id, _ := s.IsAttending(ci, db); id != 0 {
+			p := pageCheckin{
+				Accepted: false,
+				Error:    3,
+			}
+			writeJSON(w, r, p, time.Time{})
+			return
+		}
+	}
+
+	minTillStart := int(ci.Sched.Start.Sub(tn).Minutes())
 
 	if r.FormValue("save") != "" {
 		// Too long until next class
