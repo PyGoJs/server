@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"strconv"
 	"time"
 
 	"github.com/pygojs/server/types/class"
@@ -27,6 +28,7 @@ func Next(c class.Class, tm time.Time, db *sql.DB) (ClassItem, error) {
 	utsDay := time.Date(tm.Year(), tm.Month(), tm.Day(), 0, 0, 0, 0, util.Loc).Unix()
 	end := tm.Unix() - utsDay
 	day := int(tm.Weekday())
+	yr, wk := tm.ISOWeek()
 
 	var si schedule.SchedItem
 	var ci ClassItem
@@ -37,16 +39,17 @@ func Next(c class.Class, tm time.Time, db *sql.DB) (ClassItem, error) {
 
 	// Get the sched with the end-time that is the closest to tm time (but is still in the future).
 	err := db.QueryRow(`
-SELECT s.id, s.day, s.start, s.description, s.staff, class_item.id, class_item.max_students
+SELECT s.id, s.day, s.start, s.description, s.facility, s.staff, class_item.id, class_item.max_students
 FROM schedule_item AS s
 LEFT JOIN class_item
-ON s.id = class_item.siid 
+ON s.id = class_item.siid AND class_item.yearweek=?
 WHERE s.end>=? 
  AND s.day=?
  AND s.usestopped=0 
  AND s.cid=?
  ORDER BY s.start LIMIT 1;
-	`, end, day, c.Id).Scan(&si.Id, &si.Day, &si.StartInt, &si.Desc, &si.Staff, &ciId, &ciMs)
+	`, strconv.Itoa(yr)+strconv.Itoa(wk), end, day, c.Id).Scan(
+		&si.Id, &si.Day, &si.StartInt, &si.Desc, &si.Fac, &si.Staff, &ciId, &ciMs)
 
 	if err != nil {
 		if err != sql.ErrNoRows {
@@ -67,14 +70,17 @@ WHERE s.end>=?
 }
 
 // Create makes a new class_item for the given SchedItem in the database, and returns the ClassItem.
-func Create(si schedule.SchedItem, c class.Class, db *sql.DB) (ClassItem, error) {
+func Create(si schedule.SchedItem, c class.Class, tm time.Time, db *sql.DB) (ClassItem, error) {
 	var ci ClassItem
 	ci.Sched = si
+
+	yr, wk := tm.ISOWeek()
 
 	maxStu, _ := class.MaxStudents(c, db)
 	ci.MaxStudents = maxStu
 
-	r, err := db.Exec("INSERT INTO class_item (siid, cid, max_students) VALUES (?, ?, ?);", si.Id, c.Id, maxStu)
+	r, err := db.Exec("INSERT INTO class_item (siid, cid, max_students, yearweek) VALUES (?, ?, ?, ?);",
+		si.Id, c.Id, maxStu, strconv.Itoa(yr)+strconv.Itoa(wk))
 
 	if err != nil {
 		log.Println("ERROR, cannot insert new class_item in classitem.Fetch, err:", err)

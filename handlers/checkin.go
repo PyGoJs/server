@@ -11,6 +11,7 @@ import (
 	"github.com/pygojs/server/types/attendee"
 	"github.com/pygojs/server/types/class"
 	"github.com/pygojs/server/types/classitem"
+	"github.com/pygojs/server/types/client"
 	"github.com/pygojs/server/types/schedule"
 )
 
@@ -21,7 +22,7 @@ type pageCheckin struct {
 	Attendees    []att.Att `json:"attendees,omitempty"`
 }
 
-// Checkin should be read as check-in (not as "I'm there like checkin' out this nub's project")
+// Checkin should be read as check-in (not as "I'm here like checkin' out this nub's project")
 func Checkin(w http.ResponseWriter, r *http.Request) {
 
 	// Sleep for given amount of milliseconds when get variable 'sleep' is set.
@@ -34,9 +35,12 @@ func Checkin(w http.ResponseWriter, r *http.Request) {
 
 	var err error
 
-	var clid int
+	var cl client.Client
 	var rfid string
-	if clid, err = strconv.Atoi(r.FormValue("clientid")); err != nil {
+
+	var ok bool
+
+	if cl, ok = client.Get(r.FormValue("clientid")); ok == false {
 		writeJSON(w, r, pageError{ErrStr: "invalid clientid"}, time.Time{})
 		return
 	}
@@ -45,8 +49,6 @@ func Checkin(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, r, pageError{ErrStr: "invalid rfid"}, time.Time{})
 		return
 	}
-
-	_ = clid
 
 	db, err := util.Db()
 	if err != nil {
@@ -74,9 +76,15 @@ func Checkin(w http.ResponseWriter, r *http.Request) {
 
 	// Time Now
 	tn := time.Now()
+	tn = time.Date(2015, 3, 12, 11, 40, 0, 0, util.Loc)
 
-	// Class
-	c := class.Fetch(s.Cid)
+	// Fetch class of this student
+	c, err := class.Fetch(s.Cid, db)
+
+	if err != nil {
+		writeJSON(w, r, pageError{ErrStr: "can't fetch class"}, time.Time{})
+		return
+	}
 
 	// Update the schedule if it was last fetched >=30 minutes ago.
 	if tn.Sub(c.SchedLastFetched).Minutes() >= 30 {
@@ -84,13 +92,23 @@ func Checkin(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// ClassItem, includes SchedItem. ClassItem can be empty, SchedItem may not.
-	ci, err := classitem.Next(c, tn.AddDate(0, 0, -1), db)
+	ci, err := classitem.Next(c, tn, db)
 
-	// ClassItem not found (no class item for student?).
+	// ClassItem/ScheduleItem not found (no more classes today?).
 	if err != nil {
 		p := pageCheckin{
 			Accepted: false,
 			Error:    4,
+		}
+		writeJSON(w, r, p, time.Time{})
+		return
+	}
+
+	// Student not checking into the facility/room he or she should be attending.
+	if ci.Sched.Fac != cl.Fac {
+		p := pageCheckin{
+			Accepted: false,
+			Error:    5,
 		}
 		writeJSON(w, r, p, time.Time{})
 		return
@@ -123,9 +141,9 @@ func Checkin(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		// Create the classItem is there is none.
+		// Create the classItem if there is none.
 		if ci.Id == 0 {
-			ci, _ = classitem.Create(ci.Sched, c, db)
+			ci, _ = classitem.Create(ci.Sched, c, tn, db)
 		}
 		att.Attent(s, ci, minTillStart, db)
 	}

@@ -53,7 +53,7 @@ func Update(c class.Class, tm time.Time, db *sql.DB) error {
 	/*if tm.Day() == 6 || (tm.Day() == 5 && tm.Hour() >= 17) {
 		yr, wk = tm.Add(0, 0, 3).ISOWeek()
 	}*/
-	rs, err := fetchSched(c.Icsid, yr, wk)
+	rs, err := fetchSched(c.IcsId, yr, wk)
 	if err != nil {
 		return err
 	}
@@ -71,9 +71,11 @@ func Update(c class.Class, tm time.Time, db *sql.DB) error {
 
 	sNew.compareAndSave(sOld, c, db)
 
-	// To do
-	// Query old items and compare
-	// Think about renaming classitem.Fetch to something along the lines of 'classitem.Next'.
+	_, err = db.Exec("UPDATE class SET schedlastfetched=? WHERE id=? LIMIT 1;", time.Now().Unix(), c.Id)
+	if err != nil {
+		log.Println("ERROR updating schedlastfetched of class, err:", err, c.Id)
+		return err
+	}
 
 	return nil
 }
@@ -144,7 +146,8 @@ func (rs rawSched) format() (Sched, error) {
 	return s, nil
 }
 
-// compareAndSave does not work as of yet.
+// compareAndSave saves the differences between the given siNew and siOld.
+// New items are created, items that are no longer used are disabled.
 func (siNew Sched) compareAndSave(siOld Sched, c class.Class, db *sql.DB) bool {
 	newToSave := siNew.Items
 	// MatchingOldIds will contain the ids's of the old items that should not be removed.

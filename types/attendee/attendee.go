@@ -128,12 +128,20 @@ func Attent(s Stu, ci classitem.ClassItem, minsEarly int, db *sql.DB) int64 {
 	return lastid
 }
 
+// IsAttending returns the ID of the attendee_item of the given Stu, for the given classItem.
+// Given ID is zero if the Stu is not attending the classItem.
 func (s Stu) IsAttending(ci classitem.ClassItem, db *sql.DB) (int, error) {
 	var id int
+
 	err := db.QueryRow("SELECT id FROM attendee_item WHERE sid=? AND ciid=? LIMIT 1;", s.Id, ci.Id).Scan(&id)
+
 	if err != nil {
-		log.Println("ERROR while checking is student is attendee class_item, err:", err, s.Id, ci.Id)
+		if err != sql.ErrNoRows {
+			log.Println("ERROR while checking is student is attendee class_item, err:",
+				err, s.Id, ci.Id)
+		}
 		return 0, err
 	}
+
 	return id, nil
 }

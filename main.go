@@ -8,27 +8,22 @@ import (
 	"time"
 
 	"github.com/pygojs/server/handlers"
+	"github.com/pygojs/server/types/client"
+	"github.com/pygojs/server/util"
 )
 
 func main() {
-	// https://gist.github.com/belbomemo/b5e7dad10fa567a5fe8a
-	// " still preferred over ` because of escaping (there are like three(!) `'s in the string below).
-	/*fmt.Println(
-	"         ,_---~~~~~----._         \n" +
-		"  _,,_,*^____      _____``*g*\"*, \n" +
-		" / __/ /'     ^.  /      \\ ^@q   f\n" +
-		"[  @f | @))    |  | @))   l  0 _/ \n" +
-		" \\`/   \\~____ / __ \\_____/    \\   \n" +
-		"  |           _l__l_           I  \n" +
-		"  }          [______]           I \n" +
-		"  ]            | | |            | \n" +
-		"  ]             ~ ~             | \n" +
-		"  |                            |  \n" +
-		"   |                           |  \n")*/
 
 	http.Handle("/checkin", logR(http.HandlerFunc(handlers.Checkin)))
 
 	log.Println("Started")
+
+	db, err := util.Db()
+	if err != nil {
+		return
+	}
+
+	client.UpdateCache(db)
 
 	http.ListenAndServe(":13375", nil)
 
