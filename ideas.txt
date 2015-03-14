@@ -4,6 +4,8 @@ class // Every class (e.q. b-itb4-1c) gets their own row here
   id int, auto increment
   name string // b-itb4-1c
   icsid // Id needed to fetch the schedule, 14327
+  schedlastfetched int // UnixTime of when this class' schedule was fetched/updated.
+
 
 student
   id int, auto increment
@@ -28,7 +30,7 @@ class_item // Every class with 'aanwezigen' gets a row.
   siid // ScheduleItem id
   cid // Class Id
   max_students int
-  yearweek int // Example: '201512'
+  yearweek int(6) // Example: '201512'
 
 attendee_item // Every person attending every class will get a new row here.
   id int, auto increment
@@ -41,16 +43,6 @@ client
   secret varchar(64) // SecretHash
   facility string
 
-
-To do, roughly:
-/client/inchecken
-+ Check if the schedule should be updated/fetched. 
-+   Detect item changes and save them.
-+ Validation
-+   Has the person checking in even got class (now, or in the next 15 minutes)? 
-+ Save the person as checked in (make new 'attended' item in db)
-+ Return JSON (aceepted bool. error int, minTillStart int, attendies[ rfid int, name string, telaatPas bool ])
-
-To do, less-roughly:
-+Refetch the schedule for class if it was last fetched >=30 minutes ago.
-+Save the week and year of class item also in database. 
+To do:
++Change the way util does database connections. 
++Config struct

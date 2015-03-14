@@ -50,12 +50,8 @@ func Checkin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	db, err := util.Db()
-	if err != nil {
-		writeJSON(w, r, pageError{ErrStr: "not your fault :( (database is down?)"}, time.Time{})
-		return
-	}
-	defer db.Close()
+	db := util.Db
+	//defer db.Close()
 
 	s, err := att.FetchStu(rfid, db)
 
@@ -76,7 +72,7 @@ func Checkin(w http.ResponseWriter, r *http.Request) {
 
 	// Time Now
 	tn := time.Now()
-	tn = time.Date(2015, 3, 12, 11, 40, 0, 0, util.Loc)
+	//tn = time.Date(2015, 3, 12, 11, 40, 0, 0, util.Loc)
 
 	// Fetch class of this student
 	c, err := class.Fetch(s.Cid, db)

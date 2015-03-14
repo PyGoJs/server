@@ -18,7 +18,9 @@ func main() {
 
 	log.Println("Started")
 
-	db, err := util.Db()
+	util.LoadConfig("config.json")
+
+	db, err := util.CreateDb()
 	if err != nil {
 		return
 	}

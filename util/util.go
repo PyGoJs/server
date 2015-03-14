@@ -2,24 +2,65 @@ package util
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"time"
 
 	_ "github.com/ziutek/mymysql/godrv"
 )
 
-var Loc, _ = time.LoadLocation("Europe/Amsterdam")
+type Config struct {
+	Db struct {
+		User string `json:"user"`
+		Pass string `json:"password"`
+		Db   string `json:"database"`
+		//Addr string `json:"address"`
+	} `json:"database"`
+}
 
-func Db() (*sql.DB, error) {
-	// Database password in version control, yey
-	// Temporary though. A config struct should be made soon.
-	db, err := sql.Open("mymysql", "pygojs/pygojs/NVH5KfDhD7GXf88p")
+var Loc, _ = time.LoadLocation("Europe/Amsterdam")
+var Db *sql.DB
+var cfg Config
+
+func CreateDb() (*sql.DB, error) {
+	var err error
+	Db, err = sql.Open("mymysql", fmt.Sprintf("%s/%s/%s", cfg.Db.Db, cfg.Db.User, cfg.Db.Pass))
+
 	if err != nil {
 		log.Fatal(err)
 		return nil, err
 	}
-	return db, nil
+
+	return Db, nil
+}
+
+// LoadConfig parses the configuration file with the given filename
+// and creates one with empty values it if it doesn't exist.
+func LoadConfig(filename string) error {
+	data, err := ioutil.ReadFile(filename)
+
+	// File with given filename doesn't exist. Create it.
+	if err != nil {
+
+		data, err := json.MarshalIndent(&cfg, "", "\t")
+		if err != nil {
+			return err
+		}
+
+		err = ioutil.WriteFile(filename, data, 0644)
+		if err != nil {
+			log.Println("ERROR while writing to config, err:", err, filename)
+			return err
+		}
+
+	} else if err := json.Unmarshal(data, &cfg); err != nil {
+		log.Println("ERROR unmarshalling JSON in config, err:", err, filename)
+		return err
+	}
+
+	return nil
 }
 
 func CheckErrs(errs []error) (bool, string) {
