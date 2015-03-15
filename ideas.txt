@@ -6,7 +6,6 @@ class // Every class (e.q. b-itb4-1c) gets their own row here
   icsid // Id needed to fetch the schedule, 14327
   schedlastfetched int // UnixTime of when this class' schedule was fetched/updated.
 
-
 student
   id int, auto increment
   name string // Voornaam
@@ -43,6 +42,21 @@ client
   secret varchar(64) // SecretHash
   facility string
 
-To do:
-+Change the way util does database connections. 
-+Config struct
+Errors given from /checkin :
+  1: Student not found
+  2: Too long till next class
+  3: Student is already attending his/her current (or next < 15 minutes) class.
+  4: No class for today anymore (schedule item not found)
+  5: Student tries to check into the wrong class 
+      (student’s class is in BA6.43, but he/she tries to check into BA6.49 for example)
+
+Sketch of API for web application:
+  /api/class/all
+    Returns an array of class (ids, names and icsids)
+  /api/classitem/all?classid&yearweek
+    Returns an array of class_item (including schedule_item)
+  /api/attendee/all?class-item-id
+    Returns an array of attendee (includes Stu) that are and aren't attending the given class_item
+
+Commit:
++'Refactored' the way (variables) methods query the database.

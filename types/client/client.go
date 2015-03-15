@@ -2,9 +2,10 @@ package client
 
 import (
 	"crypto/sha256"
-	"database/sql"
 	"fmt"
 	"log"
+
+	"github.com/pygojs/server/util"
 )
 
 type Client struct {
@@ -27,10 +28,10 @@ func Get(secret string) (Client, bool) {
 	return cl, ok
 }
 
-func UpdateCache(db *sql.DB) error {
+func UpdateCache() error {
 	clients = map[string]Client{}
 
-	rows, err := db.Query("SELECT id, secret, facility FROM client LIMIT 100;")
+	rows, err := util.Db.Query("SELECT id, secret, facility FROM client LIMIT 100;")
 	if err != nil {
 		log.Println("ERROR while updating client cache, err:", err)
 		return err

@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/pygojs/server/types/classitem"
+	"github.com/pygojs/server/util"
 )
 
 // Attendee
@@ -29,14 +30,14 @@ type Stu struct {
 }
 
 // Fetch returns the student with the given rfid.
-func FetchStu(rfid string, db *sql.DB) (Stu, error) {
+func FetchStu(rfid string) (Stu, error) {
 	var s Stu
 
 	/*err := db.QueryRow(`
 	SELECT s.id, s.name, s.rfid, s.cid, c.name FROM student AS s, class AS c
 	WHERE s.rfid=? AND s.cid = c.id LIMIT 1;
 		`, rfid).Scan(&s.Id, &s.Name, &s.Rfid, &s.Cid, &c.Name)*/
-	err := db.QueryRow("SELECT id, name, rfid, cid FROm student WHERE rfid=? LIMIT 1;", rfid).Scan(&s.Id, &s.Name, &s.Rfid, &s.Cid)
+	err := util.Db.QueryRow("SELECT id, name, rfid, cid FROm student WHERE rfid=? LIMIT 1;", rfid).Scan(&s.Id, &s.Name, &s.Rfid, &s.Cid)
 
 	if err != nil {
 		log.Println("Error student.Fetch:", err)
@@ -48,7 +49,7 @@ func FetchStu(rfid string, db *sql.DB) (Stu, error) {
 
 // Fetchs returns the attendees for the given classitem.
 // Not (yet) attending students are also given.
-func Fetchs(ci classitem.ClassItem, db *sql.DB) ([]Att, error) {
+func Fetchs(ci classitem.ClassItem) ([]Att, error) {
 
 	var atts []Att
 
@@ -58,7 +59,7 @@ func Fetchs(ci classitem.ClassItem, db *sql.DB) ([]Att, error) {
 	}
 
 	// Fetch the attendee_item's and the students owning them.
-	rows, err := db.Query("SELECT attendee_item.id, attendee_item.mins_early, student.id, student.name, student.rfid FROM student, attendee_item WHERE attendee_item.ciid=? AND attendee_item.sid = student.id;", ci.Id)
+	rows, err := util.Db.Query("SELECT attendee_item.id, attendee_item.mins_early, student.id, student.name, student.rfid FROM student, attendee_item WHERE attendee_item.ciid=? AND attendee_item.sid = student.id;", ci.Id)
 
 	// It should only error during development, so I dare to 'handle' this error this way.
 	if err != nil {
@@ -86,7 +87,7 @@ func Fetchs(ci classitem.ClassItem, db *sql.DB) ([]Att, error) {
 	}
 
 	// Fetch the students that did/are not attent this.
-	rows, err = db.Query("SELECT student.name, student.rfid FROM student, class_item WHERE class_item.id = ? AND class_item.cid = student.cid AND student.id NOT IN ("+strings.Join(sids, ",")+") LIMIT 1337;", ci.Id)
+	rows, err = util.Db.Query("SELECT student.name, student.rfid FROM student, class_item WHERE class_item.id = ? AND class_item.cid = student.cid AND student.id NOT IN ("+strings.Join(sids, ",")+") LIMIT 1337;", ci.Id)
 	if err != nil {
 		log.Println("ERROR cannot fetch students in att.Fetchs, err:", err)
 		return atts, err
@@ -112,13 +113,13 @@ func Fetchs(ci classitem.ClassItem, db *sql.DB) ([]Att, error) {
 // Attent makes the given student attent the given classitem.
 // MinutesEarly is positive when the class is about to start, negative if the student is not on time.
 // The ID of the new attendee_item is returned.
-func Attent(s Stu, ci classitem.ClassItem, minsEarly int, db *sql.DB) int64 {
+func Attent(s Stu, ci classitem.ClassItem, minsEarly int) int64 {
 	if ci.Id == 0 {
 		log.Println("ClassItem Id is 0")
 		return 0
 	}
 
-	r, err := db.Exec("INSERT INTO attendee_item (ciid, sid, mins_early) VALUES (?, ?, ?);", ci.Id, s.Id, minsEarly)
+	r, err := util.Db.Exec("INSERT INTO attendee_item (ciid, sid, mins_early) VALUES (?, ?, ?);", ci.Id, s.Id, minsEarly)
 	if err != nil {
 		log.Fatal(err)
 		return 0
@@ -130,10 +131,10 @@ func Attent(s Stu, ci classitem.ClassItem, minsEarly int, db *sql.DB) int64 {
 
 // IsAttending returns the ID of the attendee_item of the given Stu, for the given classItem.
 // Given ID is zero if the Stu is not attending the classItem.
-func (s Stu) IsAttending(ci classitem.ClassItem, db *sql.DB) (int, error) {
+func (s Stu) IsAttending(ci classitem.ClassItem) (int, error) {
 	var id int
 
-	err := db.QueryRow("SELECT id FROM attendee_item WHERE sid=? AND ciid=? LIMIT 1;", s.Id, ci.Id).Scan(&id)
+	err := util.Db.QueryRow("SELECT id FROM attendee_item WHERE sid=? AND ciid=? LIMIT 1;", s.Id, ci.Id).Scan(&id)
 
 	if err != nil {
 		if err != sql.ErrNoRows {

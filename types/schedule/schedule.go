@@ -1,9 +1,10 @@
 package schedule
 
 import (
-	"database/sql"
 	"log"
 	"time"
+
+	"github.com/pygojs/server/util"
 
 	"github.com/pygojs/server/types/class"
 )
@@ -29,10 +30,10 @@ type SchedItem struct {
 
 // FetchAll returns all the SchedItems for a given class.
 // Used by updatesched.
-func FetchAll(class class.Class, db *sql.DB) (Sched, error) {
+func FetchAll(class class.Class) (Sched, error) {
 	var sis Sched
 
-	rows, err := db.Query("SELECT id, day, start, end, description, facility, staff FROM schedule_item WHERE cid=? AND usestopped=0 LIMIT 50;", class.Id)
+	rows, err := util.Db.Query("SELECT id, day, start, end, description, facility, staff FROM schedule_item WHERE cid=? AND usestopped=0 LIMIT 50;", class.Id)
 	if err != nil {
 		log.Println("ERROR, cannot fetch schedule in schedule.FetchAll, err:", err)
 		return sis, err

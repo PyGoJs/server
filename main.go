@@ -18,19 +18,24 @@ func main() {
 
 	log.Println("Started")
 
-	util.LoadConfig("config.json")
-
-	db, err := util.CreateDb()
+	err := util.LoadConfig("config.json")
+	// LoadConfig (and lots of other methods) logs the error.
 	if err != nil {
 		return
 	}
 
-	client.UpdateCache(db)
+	_, err = util.CreateDb()
+	if err != nil {
+		return
+	}
+
+	client.UpdateCache()
 
 	http.ListenAndServe(":13375", nil)
 
 }
 
+// logR logs a HTTP request
 func logR(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ip, _, _ := net.SplitHostPort(r.RemoteAddr)

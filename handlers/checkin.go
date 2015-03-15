@@ -2,11 +2,10 @@ package handlers
 
 import (
 	"database/sql"
+	"fmt"
 	"net/http"
 	"strconv"
 	"time"
-
-	"github.com/pygojs/server/util"
 
 	"github.com/pygojs/server/types/attendee"
 	"github.com/pygojs/server/types/class"
@@ -50,10 +49,7 @@ func Checkin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	db := util.Db
-	//defer db.Close()
-
-	s, err := att.FetchStu(rfid, db)
+	s, err := att.FetchStu(rfid)
 
 	// Student not found. Because of that don't know classItem so can't give minTillStart or attendees.
 	if err != nil {
@@ -75,7 +71,7 @@ func Checkin(w http.ResponseWriter, r *http.Request) {
 	//tn = time.Date(2015, 3, 12, 11, 40, 0, 0, util.Loc)
 
 	// Fetch class of this student
-	c, err := class.Fetch(s.Cid, db)
+	c, err := class.Fetch(s.Cid)
 
 	if err != nil {
 		writeJSON(w, r, pageError{ErrStr: "can't fetch class"}, time.Time{})
@@ -84,11 +80,12 @@ func Checkin(w http.ResponseWriter, r *http.Request) {
 
 	// Update the schedule if it was last fetched >=30 minutes ago.
 	if tn.Sub(c.SchedLastFetched).Minutes() >= 30 {
-		schedule.Update(c, tn, db)
+		change, _ := schedule.Update(c, tn)
+		fmt.Println(" Schedule updated,", change)
 	}
 
 	// ClassItem, includes SchedItem. ClassItem can be empty, SchedItem may not.
-	ci, err := classitem.Next(c, tn, db)
+	ci, err := classitem.Next(c, tn)
 
 	// ClassItem/ScheduleItem not found (no more classes today?).
 	if err != nil {
@@ -111,9 +108,9 @@ func Checkin(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Check if this student is already attending this class_item.
-	// When ci.Id is 0 nobody can be attending the class, so no need to check.
+	// When ci.Id is 0 nobody is (and can be) attending the class (up to now), so no need to check.
 	if ci.Id != 0 {
-		if id, _ := s.IsAttending(ci, db); id != 0 {
+		if id, _ := s.IsAttending(ci); id != 0 {
 			p := pageCheckin{
 				Accepted: false,
 				Error:    3,
@@ -125,6 +122,7 @@ func Checkin(w http.ResponseWriter, r *http.Request) {
 
 	minTillStart := int(ci.Sched.Start.Sub(tn).Minutes())
 
+	// For easier testing
 	if r.FormValue("save") != "" {
 		// Too long until next class
 		if minTillStart > 15 {
@@ -139,9 +137,10 @@ func Checkin(w http.ResponseWriter, r *http.Request) {
 
 		// Create the classItem if there is none.
 		if ci.Id == 0 {
-			ci, _ = classitem.Create(ci.Sched, c, tn, db)
+			ci, _ = classitem.Create(ci.Sched, c, tn)
+			fmt.Println(" ClassItem created, ", ci.Id, ci.MaxStudents)
 		}
-		att.Attent(s, ci, minTillStart, db)
+		att.Attent(s, ci, minTillStart)
 	}
 
 	p := pageCheckin{
@@ -150,7 +149,7 @@ func Checkin(w http.ResponseWriter, r *http.Request) {
 
 	if r.FormValue("attendees") != "" {
 		p.MinTillStart = minTillStart
-		atts, _ := att.Fetchs(ci, db)
+		atts, _ := att.Fetchs(ci)
 		p.Attendees = atts
 	}
 

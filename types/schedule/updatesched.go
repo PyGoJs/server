@@ -1,7 +1,6 @@
 package schedule
 
 import (
-	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -21,11 +20,6 @@ const rsDateLayout = "Mon Jan 2 2006"
 const rsDateTimeLayout = "Mon Jan 2 2006 15:04"
 
 const save = true
-
-type schedItemUpd struct {
-	SchedItem
-	matching bool
-}
 
 // rawSched is a 'wrapper' containg an slice of rawSchedDay.
 type rawSched struct {
@@ -47,7 +41,7 @@ type rawSchedDay struct {
 
 // UpdateSched fetches the live schedule from the API,
 // and saves the changes in the database.
-func Update(c class.Class, tm time.Time, db *sql.DB) error {
+func Update(c class.Class, tm time.Time) (bool, error) {
 	yr, wk := tm.ISOWeek()
 	// Next week if Saturday, or Friday from 5pm.
 	/*if tm.Day() == 6 || (tm.Day() == 5 && tm.Hour() >= 17) {
@@ -55,29 +49,32 @@ func Update(c class.Class, tm time.Time, db *sql.DB) error {
 	}*/
 	rs, err := fetchSched(c.IcsId, yr, wk)
 	if err != nil {
-		return err
+		return false, err
 	}
 
 	// rawSched to []SchedItem
 	sNew, err := rs.format()
 	if err != nil {
-		return err
+		return false, err
 	}
 
-	sOld, err := FetchAll(c, db)
+	sOld, err := FetchAll(c)
 	if err != nil {
-		return err
+		return false, err
 	}
 
-	sNew.compareAndSave(sOld, c, db)
+	change, err := sNew.compareAndSave(sOld, c)
+	if err != nil {
+		return change, err
+	}
 
-	_, err = db.Exec("UPDATE class SET schedlastfetched=? WHERE id=? LIMIT 1;", time.Now().Unix(), c.Id)
+	_, err = util.Db.Exec("UPDATE class SET schedlastfetched=? WHERE id=? LIMIT 1;", time.Now().Unix(), c.Id)
 	if err != nil {
 		log.Println("ERROR updating schedlastfetched of class, err:", err, c.Id)
-		return err
+		return false, err
 	}
 
-	return nil
+	return change, nil
 }
 
 // fetchSched returns the live schedule, fetched from the API, as rawSched.
@@ -113,7 +110,7 @@ func fetchSched(icsid, yr, wk int) (rawSched, error) {
 	return rawSched{days: rs}, nil
 }
 
-// format takes a rawSched and returns it as schedItemUpd.
+// format takes a rawSched and returns it as Sched.
 func (rs rawSched) format() (Sched, error) {
 	var s Sched
 	var tmDay, tmStart, tmEnd time.Time
@@ -148,7 +145,8 @@ func (rs rawSched) format() (Sched, error) {
 
 // compareAndSave saves the differences between the given siNew and siOld.
 // New items are created, items that are no longer used are disabled.
-func (siNew Sched) compareAndSave(siOld Sched, c class.Class, db *sql.DB) bool {
+// (Not the most efficient and clean code.)
+func (siNew Sched) compareAndSave(siOld Sched, c class.Class) (bool, error) {
 	newToSave := siNew.Items
 	// MatchingOldIds will contain the ids's of the old items that should not be removed.
 	change := true
@@ -166,7 +164,6 @@ func (siNew Sched) compareAndSave(siOld Sched, c class.Class, db *sql.DB) bool {
 				if n.Day == o.Day && n.StartInt == o.StartInt && n.EndInt == o.EndInt &&
 					n.Desc == o.Desc && n.Fac == o.Fac && n.Staff == o.Staff {
 					match = true
-					fmt.Println("Match:", o.Id)
 
 					matchingOldIds = append(matchingOldIds, o.Id)
 					break oldLoop
@@ -177,7 +174,6 @@ func (siNew Sched) compareAndSave(siOld Sched, c class.Class, db *sql.DB) bool {
 			if match == false {
 				newToSave = append(newToSave, n)
 				change = true
-				fmt.Println(" New:", n)
 			}
 		}
 
@@ -204,12 +200,12 @@ func (siNew Sched) compareAndSave(siOld Sched, c class.Class, db *sql.DB) bool {
 			ut := time.Now().Unix()
 			sql := fmt.Sprintf("UPDATE schedule_item SET usestopped=? WHERE id IN (%s);", strings.Join(remIds, ","))
 			if save {
-				_, err := db.Exec(sql, ut)
+				_, err := util.Db.Exec(sql, ut)
 				if err != nil {
 					log.Println("ERROR while updating schedule; cannot set usestopped for ids ", remIds, ", err:", err)
+					return false, err
 				}
 			}
-			fmt.Println(remIds)
 		}
 	}
 
@@ -232,15 +228,14 @@ func (siNew Sched) compareAndSave(siOld Sched, c class.Class, db *sql.DB) bool {
 			sqlstr)
 
 		if save {
-			_, err := db.Exec(sql)
+			_, err := util.Db.Exec(sql)
 			if err != nil {
 				log.Println("ERROR while updating schedule, cannot insert items, err:", err, c.Id)
 				log.Println(sql)
+				return false, err
 			}
-		} else {
-			fmt.Println(sql)
 		}
 	}
 
-	return change
+	return change, nil
 }

@@ -3,7 +3,6 @@ package classitem
 
 import (
 	"database/sql"
-	"fmt"
 	"log"
 	"strconv"
 	"time"
@@ -22,7 +21,7 @@ type ClassItem struct {
 }
 
 // Next returns the next or current classitem for the given Class.
-func Next(c class.Class, tm time.Time, db *sql.DB) (ClassItem, error) {
+func Next(c class.Class, tm time.Time) (ClassItem, error) {
 	// (Get the UnixTime from the start of this day and subtract is from the given tm.Unix,
 	//  so we end up with the amount of seconds since the start of the day.)
 	utsDay := time.Date(tm.Year(), tm.Month(), tm.Day(), 0, 0, 0, 0, util.Loc).Unix()
@@ -38,7 +37,7 @@ func Next(c class.Class, tm time.Time, db *sql.DB) (ClassItem, error) {
 	var ciMs sql.NullInt64 // ClassItem.MaxStudents
 
 	// Get the sched with the end-time that is the closest to tm time (but is still in the future).
-	err := db.QueryRow(`
+	err := util.Db.QueryRow(`
 SELECT s.id, s.day, s.start, s.description, s.facility, s.staff, class_item.id, class_item.max_students
 FROM schedule_item AS s
 LEFT JOIN class_item
@@ -70,16 +69,16 @@ WHERE s.end>=?
 }
 
 // Create makes a new class_item for the given SchedItem in the database, and returns the ClassItem.
-func Create(si schedule.SchedItem, c class.Class, tm time.Time, db *sql.DB) (ClassItem, error) {
+func Create(si schedule.SchedItem, c class.Class, tm time.Time) (ClassItem, error) {
 	var ci ClassItem
 	ci.Sched = si
 
 	yr, wk := tm.ISOWeek()
 
-	maxStu, _ := class.MaxStudents(c, db)
+	maxStu, _ := class.MaxStudents(c)
 	ci.MaxStudents = maxStu
 
-	r, err := db.Exec("INSERT INTO class_item (siid, cid, max_students, yearweek) VALUES (?, ?, ?, ?);",
+	r, err := util.Db.Exec("INSERT INTO class_item (siid, cid, max_students, yearweek) VALUES (?, ?, ?, ?);",
 		si.Id, c.Id, maxStu, strconv.Itoa(yr)+strconv.Itoa(wk))
 
 	if err != nil {
@@ -89,8 +88,6 @@ func Create(si schedule.SchedItem, c class.Class, tm time.Time, db *sql.DB) (Cla
 
 	id, _ := r.LastInsertId()
 	ci.Id = int(id)
-
-	fmt.Println(" Created classitem succesfully", ci.Id, ci.MaxStudents)
 
 	return ci, nil
 }

@@ -1,9 +1,10 @@
 package class
 
 import (
-	"database/sql"
 	"log"
 	"time"
+
+	"github.com/pygojs/server/util"
 )
 
 type Class struct {
@@ -15,10 +16,10 @@ type Class struct {
 }
 
 // Fetch returns the Class for the given class Id.
-func Fetch(cid int, db *sql.DB) (Class, error) {
+func Fetch(cid int) (Class, error) {
 	var c Class
 
-	err := db.QueryRow("SELECT id, name, icsid, schedlastfetched FROM class WHERE id=? LIMIT 1;",
+	err := util.Db.QueryRow("SELECT id, name, icsid, schedlastfetched FROM class WHERE id=? LIMIT 1;",
 		cid).Scan(&c.Id, &c.Name, &c.IcsId, &c.SchedLastFetchedInt)
 
 	if err != nil {
@@ -39,8 +40,8 @@ func Fetch(cid int, db *sql.DB) (Class, error) {
 
 // MaxStudents
 // TO DO: Illness
-func MaxStudents(c Class, db *sql.DB) (count int, err error) {
-	err = db.QueryRow("SELECT count(*) FROM student WHERE cid=?;", c.Id).Scan(&count)
+func MaxStudents(c Class) (count int, err error) {
+	err = util.Db.QueryRow("SELECT count(*) FROM student WHERE cid=?;", c.Id).Scan(&count)
 
 	if err != nil {
 		log.Println("ERROR in attendee.MaxStudents;", err)
