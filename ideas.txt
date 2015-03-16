@@ -51,12 +51,9 @@ Errors given from /checkin :
       (student’s class is in BA6.43, but he/she tries to check into BA6.49 for example)
 
 Sketch of API for web application:
-  /api/class/all
-    Returns an array of class (ids, names and icsids)
-  /api/classitem/all?classid&yearweek
-    Returns an array of class_item (including schedule_item)
-  /api/attendee/all?class-item-id
-    Returns an array of attendee (includes Stu) that are and aren't attending the given class_item
-
-Commit:
-+'Refactored' the way (variables) methods query the database.
++/api/class/all
+   Returns an array of class (ids, names and icsids)
++/api/classitem/all?classid&yearweek
+   Returns an array of class_item (including schedule_item)
++/api/attendee/all?class-item-id
+   Returns an array of attendee (includes Stu) that are and aren't attending the given class_item

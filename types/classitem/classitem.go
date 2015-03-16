@@ -15,9 +15,10 @@ import (
 // ClassItem only exists when there is at least one student attending the SchedItem.
 // MaxStudents is saved because illness and because the amount of students in a class can change.
 type ClassItem struct {
-	Id          int
-	MaxStudents int `sql:"max_students"`
-	Sched       schedule.SchedItem
+	Id       int                `json:"id"`
+	MaxStus  int                `sql:"max_students" json:"maxstus"`
+	AmntStus int                `json:"amntstus"`
+	Sched    schedule.SchedItem `json:"sched"`
 }
 
 // Next returns the next or current classitem for the given Class.
@@ -59,13 +60,51 @@ WHERE s.end>=?
 
 	if ciId.Valid {
 		ci.Id = int(ciId.Int64)
-		ci.MaxStudents = int(ciMs.Int64)
+		ci.MaxStus = int(ciMs.Int64)
 	}
 
 	si.Start = time.Unix(utsDay+int64(si.StartInt), 0)
 
 	ci.Sched = si
 	return ci, nil
+}
+
+func FetchAll(cid, yrwk int) ([]ClassItem, error) {
+	var cis []ClassItem
+
+	rows, err := util.Db.Query(`
+SELECT s.day, s.start, s.end, s.description, s.facility, s.staff, c.id, c.max_students
+FROM schedule_item AS s, class_item AS c
+WHERE c.cid = ? AND c.yearweek = ? AND c.siid = s.id
+	`, cid, yrwk)
+	if err != nil {
+		log.Println("ERROR while FetchAll classItem, err:", err)
+		return cis, err
+	}
+
+	for rows.Next() {
+		var si schedule.SchedItem
+		var ci ClassItem
+
+		err = rows.Scan(&si.Day, &si.StartInt, &si.EndInt, &si.Desc, &si.Fac, &si.Staff,
+			&ci.Id, &ci.MaxStus)
+		if err != nil {
+			log.Println("ERROR while formatting ClassItem in FetchAll, err:", err)
+			return cis, err
+		}
+
+		err = util.Db.QueryRow("SELECT COUNT(id) FROM attendee_item WHERE ciid=? LIMIT 50;",
+			ci.Id).Scan(&ci.AmntStus)
+		if err != nil {
+			log.Println("ERROR/warning while fetching attendee count for classitem, err:", err)
+		}
+
+		ci.Sched = si
+
+		cis = append(cis, ci)
+	}
+
+	return cis, nil
 }
 
 // Create makes a new class_item for the given SchedItem in the database, and returns the ClassItem.
@@ -76,7 +115,7 @@ func Create(si schedule.SchedItem, c class.Class, tm time.Time) (ClassItem, erro
 	yr, wk := tm.ISOWeek()
 
 	maxStu, _ := class.MaxStudents(c)
-	ci.MaxStudents = maxStu
+	ci.MaxStus = maxStu
 
 	r, err := util.Db.Exec("INSERT INTO class_item (siid, cid, max_students, yearweek) VALUES (?, ?, ?, ?);",
 		si.Id, c.Id, maxStu, strconv.Itoa(yr)+strconv.Itoa(wk))

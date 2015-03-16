@@ -16,16 +16,15 @@ type Sched struct {
 
 // SchedItem contains the facts about a schedule item.
 type SchedItem struct {
-	Id       int
-	Day      int
-	StartInt int `sql:"start"`
-	Start    time.Time
-	EndInt   int `sql:"end"`
-	Created  int
-	//UseStopped int
-	Desc  string `sql:"description"`
-	Fac   string `sql:"facillity"`
-	Staff string
+	Id       int       `json:"-"`
+	Day      int       `json:"day"`
+	StartInt int       `sql:"start" json:"start"`
+	Start    time.Time `json:"-"`
+	EndInt   int       `sql:"end" json:"end"`
+	Created  int       `json:"-"`
+	Desc     string    `sql:"description" json:"desc"`
+	Fac      string    `sql:"facillity" json:"fac"`
+	Staff    string    `json:"staff"`
 }
 
 // FetchAll returns all the SchedItems for a given class.

@@ -14,9 +14,15 @@ import (
 
 func main() {
 
+	log.Println("Started")
+
+	// Handlers
 	http.Handle("/checkin", logR(http.HandlerFunc(handlers.Checkin)))
 
-	log.Println("Started")
+	// Handlers - Api
+	http.Handle("/api/class", logR(http.HandlerFunc(handlers.ApiClass)))
+	http.Handle("/api/classitem", logR(http.HandlerFunc(handlers.ApiClassItem)))
+	http.Handle("/api/attendee", logR(http.HandlerFunc(handlers.ApiAttendee)))
 
 	err := util.LoadConfig("config.json")
 	// LoadConfig (and lots of other methods) logs the error.

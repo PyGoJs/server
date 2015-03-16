@@ -138,7 +138,7 @@ func Checkin(w http.ResponseWriter, r *http.Request) {
 		// Create the classItem if there is none.
 		if ci.Id == 0 {
 			ci, _ = classitem.Create(ci.Sched, c, tn)
-			fmt.Println(" ClassItem created, ", ci.Id, ci.MaxStudents)
+			fmt.Println(" ClassItem created, ", ci.Id, ci.MaxStus)
 		}
 		att.Attent(s, ci, minTillStart)
 	}
@@ -149,7 +149,7 @@ func Checkin(w http.ResponseWriter, r *http.Request) {
 
 	if r.FormValue("attendees") != "" {
 		p.MinTillStart = minTillStart
-		atts, _ := att.Fetchs(ci)
+		atts, _ := att.FetchAll(ci)
 		p.Attendees = atts
 	}
 

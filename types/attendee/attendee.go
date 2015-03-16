@@ -49,7 +49,7 @@ func FetchStu(rfid string) (Stu, error) {
 
 // Fetchs returns the attendees for the given classitem.
 // Not (yet) attending students are also given.
-func Fetchs(ci classitem.ClassItem) ([]Att, error) {
+func FetchAll(ci classitem.ClassItem) ([]Att, error) {
 
 	var atts []Att
 

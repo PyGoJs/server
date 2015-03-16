@@ -8,11 +8,11 @@ import (
 )
 
 type Class struct {
-	Id                  int
-	Name                string
-	IcsId               int
-	SchedLastFetched    time.Time
-	SchedLastFetchedInt int64
+	Id                  int       `json:"id"`
+	Name                string    `json:"name"`
+	IcsId               int       `json:"icsid"`
+	SchedLastFetched    time.Time `json:"-"`
+	SchedLastFetchedInt int64     `json:"-"`
 }
 
 // Fetch returns the Class for the given class Id.
@@ -36,6 +36,31 @@ func Fetch(cid int) (Class, error) {
 		Id:               cid,
 		SchedLastFetched: time.Now(),
 	}*/
+}
+
+func FetchAll() ([]Class, error) {
+	var cs []Class
+
+	rows, err := util.Db.Query("SELECT id, name, icsid FROM class LIMIT 1337;")
+
+	if err != nil {
+		log.Println("ERROR: cannot fetchall class, err:", err)
+		return cs, err
+	}
+
+	for rows.Next() {
+		var c Class
+
+		err = rows.Scan(&c.Id, &c.Name, &c.IcsId)
+		if err != nil {
+			log.Println("ERROR while formatting Class in FetchAll, err:", err)
+			return cs, err
+		}
+
+		cs = append(cs, c)
+	}
+
+	return cs, nil
 }
 
 // MaxStudents
