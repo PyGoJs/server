@@ -10,6 +10,7 @@ import (
 	"github.com/pygojs/server/handlers"
 	"github.com/pygojs/server/types/client"
 	"github.com/pygojs/server/util"
+	"github.com/pygojs/server/ws"
 )
 
 func main() {
@@ -37,7 +38,9 @@ func main() {
 
 	client.UpdateCache()
 
-	http.ListenAndServe(":13375", nil)
+	ws.CreateServer()
+
+	http.ListenAndServe(util.Cfg().Http.Addr, nil)
 
 }
 

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/pygojs/server/types/attendee"
@@ -12,6 +13,8 @@ import (
 	"github.com/pygojs/server/types/classitem"
 	"github.com/pygojs/server/types/client"
 	"github.com/pygojs/server/types/schedule"
+	"github.com/pygojs/server/util"
+	"github.com/pygojs/server/ws"
 )
 
 type pageCheckin struct {
@@ -40,12 +43,12 @@ func Checkin(w http.ResponseWriter, r *http.Request) {
 	var ok bool
 
 	if cl, ok = client.Get(r.FormValue("clientid")); ok == false {
-		writeJSON(w, r, pageError{ErrStr: "invalid clientid"}, time.Time{})
+		writeJSON(w, r, pageError{ErrStr: "invalid clientid"})
 		return
 	}
 
 	if rfid = r.FormValue("rfid"); rfid == "" {
-		writeJSON(w, r, pageError{ErrStr: "invalid rfid"}, time.Time{})
+		writeJSON(w, r, pageError{ErrStr: "invalid rfid"})
 		return
 	}
 
@@ -54,7 +57,7 @@ func Checkin(w http.ResponseWriter, r *http.Request) {
 	// Student not found. Because of that don't know classItem so can't give minTillStart or attendees.
 	if err != nil {
 		if err != sql.ErrNoRows {
-			writeJSON(w, r, pageError{ErrStr: "can't fetch student"}, time.Time{})
+			writeJSON(w, r, pageError{ErrStr: "can't fetch student"})
 			return
 		}
 
@@ -62,19 +65,19 @@ func Checkin(w http.ResponseWriter, r *http.Request) {
 			Accepted: false,
 			Error:    1,
 		}
-		writeJSON(w, r, p, time.Time{})
+		writeJSON(w, r, p)
 		return
 	}
 
 	// Time Now
 	tn := time.Now()
-	//tn = time.Date(2015, 3, 12, 11, 40, 0, 0, util.Loc)
+	tn = time.Date(2015, 3, 24, 9, 40, 0, 0, util.Loc)
 
 	// Fetch class of this student
 	c, err := class.Fetch(s.Cid)
 
 	if err != nil {
-		writeJSON(w, r, pageError{ErrStr: "can't fetch class"}, time.Time{})
+		writeJSON(w, r, pageError{ErrStr: "can't fetch class"})
 		return
 	}
 
@@ -93,7 +96,7 @@ func Checkin(w http.ResponseWriter, r *http.Request) {
 			Accepted: false,
 			Error:    4,
 		}
-		writeJSON(w, r, p, time.Time{})
+		writeJSON(w, r, p)
 		return
 	}
 
@@ -103,7 +106,7 @@ func Checkin(w http.ResponseWriter, r *http.Request) {
 			Accepted: false,
 			Error:    5,
 		}
-		writeJSON(w, r, p, time.Time{})
+		writeJSON(w, r, p)
 		return
 	}
 
@@ -115,7 +118,7 @@ func Checkin(w http.ResponseWriter, r *http.Request) {
 				Accepted: false,
 				Error:    3,
 			}
-			writeJSON(w, r, p, time.Time{})
+			writeJSON(w, r, p)
 			return
 		}
 	}
@@ -131,7 +134,7 @@ func Checkin(w http.ResponseWriter, r *http.Request) {
 				Error:        2,
 				MinTillStart: minTillStart,
 			}
-			writeJSON(w, r, p, time.Time{})
+			writeJSON(w, r, p)
 			return
 		}
 
@@ -153,5 +156,12 @@ func Checkin(w http.ResponseWriter, r *http.Request) {
 		p.Attendees = atts
 	}
 
-	writeJSON(w, r, p, time.Time{})
+	var wsMsg ws.OutMsg
+	wsMsg.Checkin.CiId = ci.Id
+	wsMsg.Checkin.Att.MinsEarly = minTillStart
+	s.Rfid = ""
+	wsMsg.Checkin.Att.Stu = s
+	ws.Wss.Broadcast(strings.ToLower(c.Name), wsMsg)
+
+	writeJSON(w, r, p)
 }

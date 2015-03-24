@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"net/http"
-	"time"
 
 	"github.com/pygojs/server/types/class"
 )
@@ -13,8 +12,8 @@ func ApiClass(w http.ResponseWriter, r *http.Request) {
 		p := pageError{
 			ErrStr: "not your fault",
 		}
-		writeJSON(w, r, p, time.Time{})
+		writeJSON(w, r, p)
 		return
 	}
-	writeJSON(w, r, cs, time.Time{})
+	writeJSON(w, r, cs)
 }

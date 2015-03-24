@@ -16,7 +16,7 @@ type Att struct {
 	Id int `json:"-"`
 	//Ciid int `json:"ciid,omitempty"`
 	//Sid       int  `json:",omitempty"`
-	Attent    bool `json:"attent"`
+	Attent    bool `json:"attent,omitempty"`
 	MinsEarly int  `sql:"mins_early" json:"minsEarly,omitempty"`
 	Stu       Stu  `json:"stu"`
 }
@@ -25,7 +25,7 @@ type Att struct {
 type Stu struct {
 	Id   int    `json:"-"`
 	Name string `json:"name"`
-	Rfid string `json:"rfid"`
+	Rfid string `json:"rfid,omitempty"`
 	Cid  int    `json:"-"`
 }
 

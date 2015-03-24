@@ -3,7 +3,6 @@ package handlers
 import (
 	"net/http"
 	"strconv"
-	"time"
 
 	"github.com/pygojs/server/types/classitem"
 )
@@ -23,7 +22,7 @@ func ApiClassItem(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if p.ErrStr != "" {
-		writeJSON(w, r, p, time.Time{})
+		writeJSON(w, r, p)
 		return
 	}
 
@@ -32,9 +31,9 @@ func ApiClassItem(w http.ResponseWriter, r *http.Request) {
 		p := pageError{
 			ErrStr: "cannot fetch class items",
 		}
-		writeJSON(w, r, p, time.Time{})
+		writeJSON(w, r, p)
 		return
 	}
 
-	writeJSON(w, r, cis, time.Time{})
+	writeJSON(w, r, cis)
 }

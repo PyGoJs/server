@@ -12,6 +12,9 @@ import (
 )
 
 type Config struct {
+	Http struct {
+		Addr string `json:"addr"`
+	}
 	Db struct {
 		User string `json:"user"`
 		Pass string `json:"password"`
@@ -61,6 +64,11 @@ func LoadConfig(filename string) error {
 	}
 
 	return nil
+}
+
+// Cfg returns a copy of the running configuration.
+func Cfg() Config {
+	return cfg
 }
 
 func CheckErrs(errs []error) (bool, string) {

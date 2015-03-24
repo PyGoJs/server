@@ -3,7 +3,6 @@ package handlers
 import (
 	"net/http"
 	"strconv"
-	"time"
 
 	"github.com/pygojs/server/types/attendee"
 	"github.com/pygojs/server/types/classitem"
@@ -16,7 +15,7 @@ func ApiAttendee(w http.ResponseWriter, r *http.Request) {
 		p := pageError{
 			ErrStr: "invalid ciid (class item id)",
 		}
-		writeJSON(w, r, p, time.Time{})
+		writeJSON(w, r, p)
 		return
 	}
 
@@ -25,10 +24,10 @@ func ApiAttendee(w http.ResponseWriter, r *http.Request) {
 		p := pageError{
 			ErrStr: "cannot fetching attendees",
 		}
-		writeJSON(w, r, p, time.Time{})
+		writeJSON(w, r, p)
 		return
 	}
 
-	writeJSON(w, r, atts, time.Time{})
+	writeJSON(w, r, atts)
 
 }
