@@ -49,3 +49,7 @@ Errors given from /checkin :
   4: No class for today anymore (schedule item not found)
   5: Student tries to check into the wrong class 
       (student’s class is in BA6.43, but he/she tries to check into BA6.49 for example)
+
+To do:
++Fix (and check for more) data races. 
++Commenting (ws package, new functions in util). 

@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"net"
+	"net/http"
 	"time"
 
 	_ "github.com/ziutek/mymysql/godrv"
@@ -79,4 +81,19 @@ func CheckErrs(errs []error) (bool, string) {
 		}
 	}
 	return len(str) == 0, str
+}
+
+// Ip, returns (correct) Ip address for the given http request.
+func Ip(r http.Request) string {
+	ip, _, _ := net.SplitHostPort(r.RemoteAddr)
+	// Proxy stuff
+	if ip == "127.0.0.1" {
+		ip = r.Header.Get("X-FORWARDED-FOR")
+	}
+	return ip
+}
+
+// Log Small
+func LogS(format string, args ...interface{}) {
+	fmt.Printf(time.Now().Format("0102-15:04")+" "+format+"\n", args...)
 }

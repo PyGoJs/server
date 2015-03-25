@@ -1,11 +1,8 @@
 package main
 
 import (
-	"fmt"
 	"log"
-	"net"
 	"net/http"
-	"time"
 
 	"github.com/pygojs/server/handlers"
 	"github.com/pygojs/server/types/client"
@@ -18,7 +15,7 @@ func main() {
 	log.Println("Started")
 
 	// Handlers
-	http.Handle("/checkin", logR(http.HandlerFunc(handlers.Checkin)))
+	http.Handle("/checkin", http.HandlerFunc(handlers.Checkin))
 
 	// Handlers - Api
 	http.Handle("/api/class", logR(http.HandlerFunc(handlers.ApiClass)))
@@ -38,7 +35,9 @@ func main() {
 
 	client.UpdateCache()
 
-	ws.CreateServer()
+	// Create/start the websocket server and set the global var in ws to it
+	// (so other stuff can do stuff with ws (see near the end of handlers.Checkin)).
+	ws.Wss = ws.CreateServer("/ws")
 
 	http.ListenAndServe(util.Cfg().Http.Addr, nil)
 
@@ -47,12 +46,7 @@ func main() {
 // logR logs a HTTP request
 func logR(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ip, _, _ := net.SplitHostPort(r.RemoteAddr)
-		// Proxy stuff
-		if ip == "127.0.0.1" {
-			ip = r.Header.Get("X-FORWARDED-FOR")
-		}
-		fmt.Printf("%s %s %s%s\n", time.Now().Format("0102-15:04"), ip, r.Method, r.URL)
+		util.LogS("%s %s%s", util.Ip(*r), r.Method, r.URL)
 		h.ServeHTTP(w, r)
 	})
 }

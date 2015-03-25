@@ -26,6 +26,8 @@ type pageCheckin struct {
 
 // Checkin should be read as check-in (not as "I'm here like checkin' out this nub's project")
 func Checkin(w http.ResponseWriter, r *http.Request) {
+	// This is not nice. Fix it.
+	util.LogS("%s checkin: %s:%s:%s:%s", util.Ip(*r), r.FormValue("clientid"), r.FormValue("rfid"), r.FormValue("save"), r.FormValue("attendees"))
 
 	// Sleep for given amount of milliseconds when get variable 'sleep' is set.
 	// (Looks complicated (or just confusing) because of checking if valid int and time parsing.)
@@ -71,7 +73,7 @@ func Checkin(w http.ResponseWriter, r *http.Request) {
 
 	// Time Now
 	tn := time.Now()
-	tn = time.Date(2015, 3, 24, 9, 40, 0, 0, util.Loc)
+	tn = time.Date(2015, 3, 25, 9, 30, 0, 0, util.Loc)
 
 	// Fetch class of this student
 	c, err := class.Fetch(s.Cid)
