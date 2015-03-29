@@ -39,14 +39,14 @@ func (c *conn) reader() {
 }
 
 func (c *conn) writer() {
-forLoop:
+	//forLoop:
 	for {
 		select {
 		case msg := <-c.send:
 			err := c.ws.WriteJSON(msg)
 			if err != nil {
 				// log.Println("ERROR writing msg in ws client, err:", err)
-				break forLoop
+				break // forLoop
 			}
 		}
 	}

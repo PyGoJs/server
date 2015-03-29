@@ -1,6 +1,9 @@
 package ws
 
-import "github.com/pygojs/server/types/attendee"
+import (
+	"github.com/pygojs/server/types/attendee"
+	"github.com/pygojs/server/types/classitem"
+)
 
 // inMsg is what incomming messages from conns are put in.
 type inMsg struct {
@@ -14,7 +17,9 @@ type OutMsg struct {
 	} `json:"-"`
 	Error   string   `json:"error,omitempty"`
 	Checkin struct { // Information about a check-in.
-		CiId int     `json:"ciid"`
-		Att  att.Att `json:"att"`
+		//CiId int          `json:"ciid"`
+		//Si   si.SchedItem `json:"si"`
+		Ci  classitem.ClassItem `json:"ci"`
+		Att att.Att             `json:"att"`
 	} `json:"checkin,omitempty"`
 }

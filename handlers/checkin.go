@@ -73,7 +73,7 @@ func Checkin(w http.ResponseWriter, r *http.Request) {
 
 	// Time Now
 	tn := time.Now()
-	tn = time.Date(2015, 3, 25, 9, 30, 0, 0, util.Loc)
+	// tn = time.Date(2015, 3, 23, 10, 20, 0, 0, util.Loc)
 
 	// Fetch class of this student
 	c, err := class.Fetch(s.Cid)
@@ -103,7 +103,7 @@ func Checkin(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Student not checking into the facility/room he or she should be attending.
-	if ci.Sched.Fac != cl.Fac {
+	if ci.Sched.Fac != "" && ci.Sched.Fac != cl.Fac {
 		p := pageCheckin{
 			Accepted: false,
 			Error:    5,
@@ -145,7 +145,10 @@ func Checkin(w http.ResponseWriter, r *http.Request) {
 			ci, _ = classitem.Create(ci.Sched, c, tn)
 			fmt.Println(" ClassItem created, ", ci.Id, ci.MaxStus)
 		}
-		att.Attent(s, ci, minTillStart)
+		lastId := att.Attent(s, ci, minTillStart)
+		if lastId != 0 {
+			ci.MaxStus++
+		}
 	}
 
 	p := pageCheckin{
@@ -159,7 +162,8 @@ func Checkin(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var wsMsg ws.OutMsg
-	wsMsg.Checkin.CiId = ci.Id
+	// wsMsg.Checkin.CiId = ci.Id
+	wsMsg.Checkin.Ci = ci
 	wsMsg.Checkin.Att.MinsEarly = minTillStart
 	s.Rfid = ""
 	wsMsg.Checkin.Att.Stu = s

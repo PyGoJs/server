@@ -3,7 +3,7 @@ DB structure:
 class // Every class (e.q. b-itb4-1c) gets their own row here
   id int, auto increment
   name string // b-itb4-1c
-  icsid // Id needed to fetch the schedule, 14327
+  icsid int // Id needed to fetch the schedule, 14327
   schedlastfetched int // UnixTime of when this class' schedule was fetched/updated.
 
 student
@@ -11,6 +11,7 @@ student
   name string // Voornaam
   rfid varchar(255) // Not sure what length it is going to be. 
   cid int // ClassId
+  created int(6) // YearWeek of when student got created (added to current class). (e.q. 201513)
   //telaatpas bool
 
 schedule_item // Every schedule/rooster item gets a new row in here. Old ones are kept. 
@@ -26,16 +27,16 @@ schedule_item // Every schedule/rooster item gets a new row in here. Old ones ar
 
 class_item // Every class with 'aanwezigen' gets a row. 
   id int, auto increment
-  siid // ScheduleItem id
-  cid // Class Id
+  siid int // ScheduleItem id
+  cid int // Class Id
   max_students int
   yearweek int(6) // Example: '201512'
 
 attendee_item // Every person attending every class will get a new row here.
   id int, auto increment
-  ciid // Class Item ID
-  sid // Student ID
-  mins_early // Amount of minutes that the student was early. When student is too late it will become a negative int. 
+  ciid int // Class Item ID
+  sid int // Student ID
+  mins_early int // Amount of minutes that the student was early. When student is too late it will become a negative int. 
 
 client
   id int, auto increment
@@ -51,5 +52,8 @@ Errors given from /checkin :
       (student’s class is in BA6.43, but he/she tries to check into BA6.49 for example)
 
 To do:
-+Fix (and check for more) data races. 
-+Commenting (ws package, new functions in util). 
++For /api/attendee?ciid=21 don't send students that were created after ciid's class started. 
+  Save yrwk of when student was created in db table student. I don't think saving the full unixTime adds much value.
+  In att.FetchAll when fetching students that did not attent, 
+	do relationship-stuff to only fetch students that apply: s.created >= ci.yrwk.
++Classes that are in unknown rooms can't be checked-in.

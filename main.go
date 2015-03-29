@@ -37,7 +37,7 @@ func main() {
 
 	// Create/start the websocket server and set the global var in ws to it
 	// (so other stuff can do stuff with ws (see near the end of handlers.Checkin)).
-	ws.Wss = ws.CreateServer("/ws")
+	ws.Wss = ws.NewServer("/ws")
 
 	http.ListenAndServe(util.Cfg().Http.Addr, nil)
 

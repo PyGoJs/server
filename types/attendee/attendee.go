@@ -16,7 +16,7 @@ type Att struct {
 	Id int `json:"-"`
 	//Ciid int `json:"ciid,omitempty"`
 	//Sid       int  `json:",omitempty"`
-	Attent    bool `json:"attent,omitempty"`
+	Attent    bool `json:"attent"`
 	MinsEarly int  `sql:"mins_early" json:"minsEarly,omitempty"`
 	Stu       Stu  `json:"stu"`
 }
@@ -47,7 +47,7 @@ func FetchStu(rfid string) (Stu, error) {
 	return s, nil
 }
 
-// Fetchs returns the attendees for the given classitem.
+// FetchAll returns the attendees for the given classitem.
 // Not (yet) attending students are also given.
 func FetchAll(ci classitem.ClassItem) ([]Att, error) {
 
@@ -87,7 +87,12 @@ func FetchAll(ci classitem.ClassItem) ([]Att, error) {
 	}
 
 	// Fetch the students that did/are not attent this.
-	rows, err = util.Db.Query("SELECT student.name, student.rfid FROM student, class_item WHERE class_item.id = ? AND class_item.cid = student.cid AND student.id NOT IN ("+strings.Join(sids, ",")+") LIMIT 1337;", ci.Id)
+	rows, err = util.Db.Query(
+		`SELECT student.name, student.rfid FROM student, class_item 
+WHERE class_item.id = ? AND class_item.cid = student.cid 
+AND class_item.yearweek >= student.createdyrwk
+AND student.id NOT IN (`+strings.Join(sids, ",")+`) LIMIT 1337;`,
+		ci.Id)
 	if err != nil {
 		log.Println("ERROR cannot fetch students in att.Fetchs, err:", err)
 		return atts, err

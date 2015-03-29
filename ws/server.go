@@ -47,8 +47,8 @@ var upgrader = &websocket.Upgrader{
 	},
 }
 
-// CreateServer returns a running instance of ws.server that listens to the given url (e.q. /ws).
-func CreateServer(url string) *server {
+// NewServer returns a running instance of ws.server that listens to the given url (e.q. /ws).
+func NewServer(url string) *server {
 	ws := &server{
 		conns:  make(map[*conn]string),
 		bc:     make(chan OutMsg),
