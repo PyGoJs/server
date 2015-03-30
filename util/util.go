@@ -23,6 +23,7 @@ type Config struct {
 		Db   string `json:"database"`
 		//Addr string `json:"address"`
 	} `json:"database"`
+	Debug bool `json:"debug"`
 }
 
 var Loc, _ = time.LoadLocation("Europe/Amsterdam")

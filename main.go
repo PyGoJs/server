@@ -4,6 +4,7 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/pygojs/server/auth"
 	"github.com/pygojs/server/handlers"
 	"github.com/pygojs/server/types/client"
 	"github.com/pygojs/server/util"
@@ -22,6 +23,9 @@ func main() {
 	http.Handle("/api/classitem", logR(http.HandlerFunc(handlers.ApiClassItem)))
 	http.Handle("/api/attendee", logR(http.HandlerFunc(handlers.ApiAttendee)))
 
+	// Handlers - Auth
+	http.Handle("/auth/login", logR(http.HandlerFunc(handlers.AuthLogin)))
+
 	err := util.LoadConfig("config.json")
 	// LoadConfig (and lots of other methods) logs the error.
 	if err != nil {
@@ -38,6 +42,8 @@ func main() {
 	// Create/start the websocket server and set the global var in ws to it
 	// (so other stuff can do stuff with ws (see near the end of handlers.Checkin)).
 	ws.Wss = ws.NewServer("/ws")
+
+	go auth.Run()
 
 	http.ListenAndServe(util.Cfg().Http.Addr, nil)
 

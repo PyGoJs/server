@@ -73,7 +73,9 @@ func Checkin(w http.ResponseWriter, r *http.Request) {
 
 	// Time Now
 	tn := time.Now()
-	// tn = time.Date(2015, 3, 23, 10, 20, 0, 0, util.Loc)
+	if util.Cfg().Debug == true {
+		// tn = time.Date(2015, 3, 23, 10, 20, 0, 0, util.Loc)
+	}
 
 	// Fetch class of this student
 	c, err := class.Fetch(s.Cid)
