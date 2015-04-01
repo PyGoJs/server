@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/pygojs/server/types/class"
+	"github.com/pygojs/server/types/client"
 	"github.com/pygojs/server/types/schedule"
 	"github.com/pygojs/server/util"
 )
@@ -17,12 +18,20 @@ import (
 type ClassItem struct {
 	Id       int                `json:"id"`
 	MaxStus  int                `sql:"max_students" json:"maxstus"`
-	AmntStus int                `json:"amntstus"`
+	AmntStus int                `json:"amntstus",omitempty` // OmitEmpty for /nextclass
 	Sched    schedule.SchedItem `json:"sched"`
 }
 
 // Next returns the next or current classitem for the given Class.
-func Next(c class.Class, tm time.Time) (ClassItem, error) {
+func NextC(c class.Class, tm time.Time) (ClassItem, error) {
+	return next("AND s.cid="+strconv.Itoa(c.Id), tm)
+}
+
+func NextCl(cl client.Client, tm time.Time) (ClassItem, error) {
+	return next("AND s.facility = '"+cl.Fac+"'", tm)
+}
+
+func next(sqlend string, tm time.Time) (ClassItem, error) {
 	// (Get the UnixTime from the start of this day and subtract is from the given tm.Unix,
 	//  so we end up with the amount of seconds since the start of the day.)
 	utsDay := time.Date(tm.Year(), tm.Month(), tm.Day(), 0, 0, 0, 0, util.Loc).Unix()
@@ -39,17 +48,17 @@ func Next(c class.Class, tm time.Time) (ClassItem, error) {
 
 	// Get the sched with the end-time that is the closest to tm time (but is still in the future).
 	err := util.Db.QueryRow(`
-SELECT s.id, s.day, s.start, s.description, s.facility, s.staff, class_item.id, class_item.max_students
+SELECT s.id, s.day, s.start, s.end, s.description, s.facility, s.staff, class_item.id, class_item.max_students
 FROM schedule_item AS s
 LEFT JOIN class_item
 ON s.id = class_item.siid AND class_item.yearweek=?
 WHERE s.end>=? 
  AND s.day=?
  AND s.usestopped=0 
- AND s.cid=?
+ `+sqlend+`
  ORDER BY s.start LIMIT 1;
-	`, strconv.Itoa(yr)+strconv.Itoa(wk), end, day, c.Id).Scan(
-		&si.Id, &si.Day, &si.StartInt, &si.Desc, &si.Fac, &si.Staff, &ciId, &ciMs)
+	`, strconv.Itoa(yr)+strconv.Itoa(wk), end, day).Scan(
+		&si.Id, &si.Day, &si.StartInt, &si.EndInt, &si.Desc, &si.Fac, &si.Staff, &ciId, &ciMs)
 
 	if err != nil {
 		if err != sql.ErrNoRows {

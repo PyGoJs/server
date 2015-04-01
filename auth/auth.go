@@ -1,3 +1,7 @@
+// auth handles basic authentication for the api/website.
+// I am aware that creating your own basic authentication system is considered bad practise.
+// However, for a school project (what this is) I value me learning things greater than having a secure system.
+// If this wasn't a school project, and it's main goal wasn't learning, I would have used an existing auth package.
 package auth
 
 import (

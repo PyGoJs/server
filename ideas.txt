@@ -52,19 +52,15 @@ Errors given from /checkin :
   1: Student not found
   2: Too long till next class
   3: Student is already attending his/her current (or next < 15 minutes) class.
-  4: No class for today anymore (schedule item not found)
+  4: No class for today anymore (schedule item not found) *
   5: Student tries to check into the wrong class 
       (student’s class is in BA6.43, but he/she tries to check into BA6.49 for example)
+  * Also given from /nextclass
 
 To do:
  Check for race conditions in package client.
-+Auth package
-  Functions:
-   Login(login, pass string) User, error
-   CheckCode(authcode string) error
-  Cache users
-  User struct
-   Login string
++http /nextclass
+ 
  // Need to talk with Arnold before doing the below
  Database table mentors
    id int, auto increment

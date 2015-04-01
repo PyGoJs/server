@@ -16,8 +16,8 @@ func AuthLogin(w http.ResponseWriter, r *http.Request) {
 	pass := r.FormValue("password")
 
 	if login == "" || pass == "" {
-		p := pageError{
-			ErrStr: "form value login and password required",
+		p := pageErrorStr{
+			Error: "form value login and password required",
 		}
 		writeJSON(w, r, p)
 		return
@@ -27,8 +27,8 @@ func AuthLogin(w http.ResponseWriter, r *http.Request) {
 	var key string
 	var err error
 	if u, key, err = auth.Login(login, pass); err != nil {
-		p := pageError{
-			ErrStr: "invalid login or password",
+		p := pageErrorStr{
+			Error: "invalid login or password",
 		}
 		writeJSON(w, r, p)
 		return
@@ -41,8 +41,8 @@ func AuthLogin(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, r, p)
 
 	/*if u, err := auth.CheckKey(r.FormValue("authkey")); err != nil {
-		p := pageError{
-			ErrStr: "invalid authkey",
+		p := pageErrorStr{
+			Error: "invalid authkey",
 		}
 		writeJSON(w, r, p)
 		return

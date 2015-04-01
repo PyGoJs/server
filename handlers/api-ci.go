@@ -7,29 +7,31 @@ import (
 	"github.com/pygojs/server/types/classitem"
 )
 
+// ApiClassItem HTTP handler writes []classitem.ClassItem for the given cid (class id)
+// and yrwk (year week) (form values).
 func ApiClassItem(w http.ResponseWriter, r *http.Request) {
 	var cid int
 	var err error
 
-	var p pageError
+	var p pageErrorStr
 	if cid, err = strconv.Atoi(r.FormValue("cid")); err != nil || cid <= 0 {
-		p.ErrStr = "invalid cid (classid) " // Extra space for next if statement
+		p.Error = "invalid cid (classid) " // Extra space for next if statement
 	}
 
 	var yr int
 	if yr, err = strconv.Atoi(r.FormValue("yrwk")); err != nil || yr <= 0 {
-		p.ErrStr += "invalid yearweek"
+		p.Error += "invalid yearweek"
 	}
 
-	if p.ErrStr != "" {
+	if p.Error != "" {
 		writeJSON(w, r, p)
 		return
 	}
 
 	cis, err := classitem.FetchAll(cid, yr)
 	if err != nil {
-		p := pageError{
-			ErrStr: "cannot fetch class items",
+		p := pageErrorStr{
+			Error: "cannot fetch class items",
 		}
 		writeJSON(w, r, p)
 		return

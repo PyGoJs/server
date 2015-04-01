@@ -24,10 +24,13 @@ type pageCheckin struct {
 	Attendees    []att.Att `json:"attendees,omitempty"`
 }
 
-// Checkin should be read as check-in (not as "I'm here like checkin' out this nub's project")
+// Checkin (check-in) HTTP handler tries to check-in the student with the given rfid in the facility
+// of the given clientid (form values). Check-ins are only really saved when save (form value) is given.
+// pageCheckin is writen. MinTillStart and Attendees are only given when attendees (form value) is given.
 func Checkin(w http.ResponseWriter, r *http.Request) {
 	// This is not nice. Fix it.
-	util.LogS("%s checkin: %s:%s:%s:%s", util.Ip(*r), r.FormValue("clientid"), r.FormValue("rfid"), r.FormValue("save"), r.FormValue("attendees"))
+	util.LogS("%s checkin: %s:%s:%s:%s", util.Ip(*r), r.FormValue("clientid"),
+		r.FormValue("rfid"), r.FormValue("save"), r.FormValue("attendees"))
 
 	// Sleep for given amount of milliseconds when get variable 'sleep' is set.
 	// (Looks complicated (or just confusing) because of checking if valid int and time parsing.)
@@ -45,12 +48,12 @@ func Checkin(w http.ResponseWriter, r *http.Request) {
 	var ok bool
 
 	if cl, ok = client.Get(r.FormValue("clientid")); ok == false {
-		writeJSON(w, r, pageError{ErrStr: "invalid clientid"})
+		writeJSON(w, r, pageErrorStr{Error: "invalid clientid"})
 		return
 	}
 
 	if rfid = r.FormValue("rfid"); rfid == "" {
-		writeJSON(w, r, pageError{ErrStr: "invalid rfid"})
+		writeJSON(w, r, pageErrorStr{Error: "invalid rfid"})
 		return
 	}
 
@@ -59,7 +62,7 @@ func Checkin(w http.ResponseWriter, r *http.Request) {
 	// Student not found. Because of that don't know classItem so can't give minTillStart or attendees.
 	if err != nil {
 		if err != sql.ErrNoRows {
-			writeJSON(w, r, pageError{ErrStr: "can't fetch student"})
+			writeJSON(w, r, pageErrorStr{Error: "can't fetch student"})
 			return
 		}
 
@@ -81,7 +84,7 @@ func Checkin(w http.ResponseWriter, r *http.Request) {
 	c, err := class.Fetch(s.Cid)
 
 	if err != nil {
-		writeJSON(w, r, pageError{ErrStr: "can't fetch class"})
+		writeJSON(w, r, pageErrorStr{Error: "can't fetch class"})
 		return
 	}
 
@@ -92,7 +95,7 @@ func Checkin(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// ClassItem, includes SchedItem. ClassItem can be empty, SchedItem may not.
-	ci, err := classitem.Next(c, tn)
+	ci, err := classitem.NextC(c, tn)
 
 	// ClassItem/ScheduleItem not found (no more classes today?).
 	if err != nil {

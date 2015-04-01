@@ -15,8 +15,9 @@ func main() {
 
 	log.Println("Started")
 
-	// Handlers
+	// Handlers - Client
 	http.Handle("/checkin", http.HandlerFunc(handlers.Checkin))
+	http.Handle("/nextclass", http.HandlerFunc(handlers.NextClass))
 
 	// Handlers - Api
 	http.Handle("/api/class", logR(http.HandlerFunc(handlers.ApiClass)))

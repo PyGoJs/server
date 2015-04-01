@@ -9,10 +9,12 @@ import (
 	"github.com/pygojs/server/types/classitem"
 )
 
+// ApiAttendee HTTP handler writes []att.Att for the attendees, and students that could be/can attending,
+// for the given ciid (class item id) (formvalue).
 func ApiAttendee(w http.ResponseWriter, r *http.Request) {
 	if _, err := auth.CheckKey(r.FormValue("authkey")); err != nil {
-		p := pageError{
-			ErrStr: "invalid authkey",
+		p := pageErrorStr{
+			Error: "invalid authkey",
 		}
 		writeJSON(w, r, p)
 		return
@@ -21,8 +23,8 @@ func ApiAttendee(w http.ResponseWriter, r *http.Request) {
 	var ciid int
 
 	if ciid, _ = strconv.Atoi(r.FormValue("ciid")); ciid == 0 {
-		p := pageError{
-			ErrStr: "invalid ciid (class item id)",
+		p := pageErrorStr{
+			Error: "invalid ciid (class item id)",
 		}
 		writeJSON(w, r, p)
 		return
@@ -30,8 +32,8 @@ func ApiAttendee(w http.ResponseWriter, r *http.Request) {
 
 	atts, err := att.FetchAll(classitem.ClassItem{Id: ciid})
 	if err != nil {
-		p := pageError{
-			ErrStr: "cannot fetching attendees",
+		p := pageErrorStr{
+			Error: "cannot fetching attendees",
 		}
 		writeJSON(w, r, p)
 		return

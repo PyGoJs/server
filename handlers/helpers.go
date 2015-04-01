@@ -5,9 +5,12 @@ import (
 	"net/http"
 )
 
-type pageError struct {
-	ErrInt int    `json:"errornum,omitempty"`
-	ErrStr string `json:"error,omitempty"`
+type pageErrorStr struct {
+	Error string `json:"error"`
+}
+
+type pageErrorNum struct {
+	Error int `json:"error"`
 }
 
 // writeJSON writes the given struct (v) on the given http ResponseWriter in JSON format.
