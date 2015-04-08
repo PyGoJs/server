@@ -16,14 +16,18 @@ import (
 type Config struct {
 	Http struct {
 		Addr string `json:"addr"`
-	}
+	} `json:"http"`
 	Db struct {
 		User string `json:"user"`
 		Pass string `json:"password"`
 		Db   string `json:"database"`
 		//Addr string `json:"address"`
 	} `json:"database"`
-	Debug bool `json:"debug"`
+	Debug struct {
+		Enabled bool      `json:"enabled"`
+		TimeStr string    `json:"time"`
+		Tm      time.Time `json:"-"`
+	} `json:"debug"`
 }
 
 var Loc, _ = time.LoadLocation("Europe/Amsterdam")
@@ -50,6 +54,9 @@ func LoadConfig(filename string) error {
 	// File with given filename doesn't exist. Create it.
 	if err != nil {
 
+		// Defaults
+		cfg.Debug.TimeStr = "2006-01-02 15:04"
+
 		data, err := json.MarshalIndent(&cfg, "", "\t")
 		if err != nil {
 			return err
@@ -61,8 +68,17 @@ func LoadConfig(filename string) error {
 			return err
 		}
 
-	} else if err := json.Unmarshal(data, &cfg); err != nil {
+		return nil
+	}
+
+	if err := json.Unmarshal(data, &cfg); err != nil {
 		log.Println("ERROR unmarshalling JSON in config, err:", err, filename)
+		return err
+	}
+
+	cfg.Debug.Tm, err = time.ParseInLocation("2006-01-02 15:04", cfg.Debug.TimeStr, Loc)
+	if err != nil {
+		log.Println("ERROR in config file: Invalid Time, layout: 2006-01-02 15:04")
 		return err
 	}
 

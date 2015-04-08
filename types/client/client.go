@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"log"
+	"sync"
 
 	"github.com/pygojs/server/util"
 )
@@ -15,7 +16,8 @@ type Client struct {
 }
 
 // Client.SecretHash - Client
-var clients = map[string]Client{}
+var clients = map[string]*Client{}
+var clientsM = &sync.Mutex{}
 
 func Get(secret string) (Client, bool) {
 	// A SHA256 version of the secret is stored in the database, and in Client.
@@ -24,12 +26,21 @@ func Get(secret string) (Client, bool) {
 	hash.Write([]byte(secret))
 	secretHash := hash.Sum(nil)
 
-	cl, ok := clients[fmt.Sprintf("%x", secretHash)]
+	clientsM.Lock()
+	clp, ok := clients[fmt.Sprintf("%x", secretHash)]
+	var cl Client
+	if ok {
+		cl = *clp
+	}
+	clientsM.Unlock()
+
 	return cl, ok
 }
 
 func UpdateCache() error {
-	clients = map[string]Client{}
+	clientsM.Lock()
+	clients = map[string]*Client{}
+	clientsM.Unlock()
 
 	rows, err := util.Db.Query("SELECT id, secret, facility FROM client LIMIT 100;")
 	if err != nil {
@@ -39,7 +50,7 @@ func UpdateCache() error {
 
 	for rows.Next() {
 		// (Not sure whether or not to make cl a pointer)
-		cl := Client{}
+		cl := &Client{}
 
 		err = rows.Scan(&cl.Id, &cl.secretHash, &cl.Fac)
 		if err != nil {
@@ -47,7 +58,9 @@ func UpdateCache() error {
 			return err
 		}
 
+		clientsM.Lock()
 		clients[cl.secretHash] = cl
+		clientsM.Unlock()
 	}
 
 	return nil

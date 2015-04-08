@@ -18,8 +18,8 @@ import (
 )
 
 type User struct {
-	Id    int
-	Login string
+	Id    int    `json:"-"`
+	Login string `json:"login"`
 	Pass  string `json:"-"` // SHA256
 }
 

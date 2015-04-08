@@ -30,7 +30,13 @@ func NextClass(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Current time
 	tn := time.Now()
+
+	// Debug time from config file
+	if util.Cfg().Debug.Enabled == true {
+		tn = util.Cfg().Debug.Tm
+	}
 
 	ci, err := classitem.NextCl(cl, tn)
 

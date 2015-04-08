@@ -80,11 +80,14 @@ func Update(c class.Class, tm time.Time) (bool, error) {
 // fetchSched returns the live schedule, fetched from the API, as rawSched.
 func fetchSched(icsid, yr, wk int) (rawSched, error) {
 	url := fmt.Sprintf("http://xedule.novaember.com/weekschedule.%d.json?year=%d&week=%d", icsid, yr, wk)
-	// Make Novaember reload the schedule first. (Returns an error instead of valid JSON, so refetch it)
+
+	// Not needed anymore. Novaember (Darkwater) fixed it.
+	/* // Make Novaember reload the schedule first. (Returns an error instead of valid JSON, so refetch it)
 	_, err := http.Get(url + "&reload")
 	if err != nil {
 		log.Println("ERROR/Warning while fetching schedule, cannot tell Novaember to reload, err:", err)
-	}
+	}*/
+
 	res, err := http.Get(url)
 	if err != nil {
 		log.Println("ERROR while fetching schedule, err:", err)

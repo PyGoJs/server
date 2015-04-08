@@ -11,7 +11,7 @@ student
   name string // Voornaam
   rfid varchar(255) // Not sure what length it is going to be. 
   cid int // ClassId
-  created int(6) // YearWeek of when student got created (added to current class). (e.q. 201513)
+  created int(6) // YearWeek of when student got created (added to current class). (e.q. 201513, 20151)
   //telaatpas bool
 
 schedule_item // Every schedule/rooster item gets a new row in here. Old ones are kept. 
@@ -30,7 +30,7 @@ class_item // Every class with 'aanwezigen' gets a row.
   siid int // ScheduleItem id
   cid int // Class Id
   max_students int
-  yearweek int(6) // Example: '201512'
+  yearweek int(6) // Example: 201512, 20151
 
 attendee_item // Every person attending every class will get a new row here.
   id int, auto increment
@@ -58,11 +58,7 @@ Errors given from /checkin :
   * Also given from /nextclass
 
 To do:
- Check for race conditions in package client.
-+http /nextclass
- 
- // Need to talk with Arnold before doing the below
- Database table mentors
-   id int, auto increment
-   cid int // ClassId
-   uid int // UserId of mentor
++Check for race conditions in package client.
++http /auth/checkkey
++In /checkin Auto check-into the classes after the current class, if there are right after each other.
+?Make yearweek for classitem be saved as 200601 instead of 20061

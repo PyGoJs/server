@@ -76,8 +76,10 @@ func Checkin(w http.ResponseWriter, r *http.Request) {
 
 	// Time Now
 	tn := time.Now()
-	if util.Cfg().Debug == true {
-		// tn = time.Date(2015, 3, 23, 10, 20, 0, 0, util.Loc)
+
+	// Debug time from configuration file
+	if util.Cfg().Debug.Enabled == true {
+		tn = util.Cfg().Debug.Tm
 	}
 
 	// Fetch class of this student
@@ -132,8 +134,11 @@ func Checkin(w http.ResponseWriter, r *http.Request) {
 
 	minTillStart := int(ci.Sched.Start.Sub(tn).Minutes())
 
-	// For easier testing
-	if r.FormValue("save") != "" {
+	// ClassItemsAfter
+	cis, _ := ci.Afters(c)
+
+	// NoSave for testing
+	if r.FormValue("nosave") == "" {
 		// Too long until next class
 		if minTillStart > 15 {
 			p := pageCheckin{
@@ -145,14 +150,20 @@ func Checkin(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		// Create the classItem if there is none.
-		if ci.Id == 0 {
-			ci, _ = classitem.Create(ci.Sched, c, tn)
-			fmt.Println(" ClassItem created, ", ci.Id, ci.MaxStus)
-		}
-		lastId := att.Attent(s, ci, minTillStart)
-		if lastId != 0 {
-			ci.MaxStus++
+		// Loop over the ClassItems that this Stu should be checked-into.
+		// (Think about doing this loop into ci.Create and s.Attent and just give a []ci and []s)
+		for _, ci := range cis {
+			// Create the classItem if there is none.
+			if ci.Id == 0 {
+				ci, _ = ci.Create(c, tn)
+				fmt.Println(" ClassItem created, ", ci.Id, ci.MaxStus)
+			}
+
+			// Make the Stu attent this class.
+			lastId := s.Attent(ci, minTillStart)
+			if lastId != 0 {
+				ci.MaxStus++
+			}
 		}
 	}
 
@@ -160,15 +171,17 @@ func Checkin(w http.ResponseWriter, r *http.Request) {
 		Accepted: true,
 	}
 
+	// Give a list of attendees for this classItem if it is requested
 	if r.FormValue("attendees") != "" {
 		p.MinTillStart = minTillStart
 		atts, _ := att.FetchAll(ci)
 		p.Attendees = atts
 	}
 
+	// Push message to website viewers
 	var wsMsg ws.OutMsg
 	// wsMsg.Checkin.CiId = ci.Id
-	wsMsg.Checkin.Ci = ci
+	wsMsg.Checkin.Cis = cis
 	wsMsg.Checkin.Att.MinsEarly = minTillStart
 	s.Rfid = ""
 	wsMsg.Checkin.Att.Stu = s

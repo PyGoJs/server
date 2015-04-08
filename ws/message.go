@@ -19,7 +19,7 @@ type OutMsg struct {
 	Checkin struct { // Information about a check-in.
 		//CiId int          `json:"ciid"`
 		//Si   si.SchedItem `json:"si"`
-		Ci  classitem.ClassItem `json:"ci"`
-		Att att.Att             `json:"att"`
+		Cis []classitem.ClassItem `json:"cis"`
+		Att att.Att               `json:"att"`
 	} `json:"checkin,omitempty"`
 }

@@ -118,7 +118,16 @@ AND student.id NOT IN (`+strings.Join(sids, ",")+`) LIMIT 1337;`,
 // Attent makes the given student attent the given classitem.
 // MinutesEarly is positive when the class is about to start, negative if the student is not on time.
 // The ID of the new attendee_item is returned.
-func Attent(s Stu, ci classitem.ClassItem, minsEarly int) int64 {
+func (s Stu) Attent(ci classitem.ClassItem, minsEarly int) int64 {
+	// Note: Uncomment things to make it work on a []ClassItem.
+	// Change the argument 'ci ClassItem' to 'cis []ClassItem'.
+
+	/*if len(cis) == 0 {
+		return 0
+	}*/
+
+	var firstId int64
+	//for _, ci := range cis {
 	if ci.Id == 0 {
 		log.Println("ClassItem Id is 0")
 		return 0
@@ -127,11 +136,15 @@ func Attent(s Stu, ci classitem.ClassItem, minsEarly int) int64 {
 	r, err := util.Db.Exec("INSERT INTO attendee_item (ciid, sid, mins_early) VALUES (?, ?, ?);", ci.Id, s.Id, minsEarly)
 	if err != nil {
 		log.Fatal(err)
+		//continue
 		return 0
 	}
 
-	lastid, _ := r.LastInsertId()
-	return lastid
+	//if firstId == 0 {
+	firstId, _ = r.LastInsertId()
+	//}
+	//}
+	return firstId
 }
 
 // IsAttending returns the ID of the attendee_item of the given Stu, for the given classItem.
