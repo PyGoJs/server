@@ -11,6 +11,8 @@ type pageLogin struct {
 	Key  string    `json:"key"`
 }
 
+// AuthLogin creates a new session for the given login/password pair, if it is valid.
+// The session key and the user information is written.
 func AuthLogin(w http.ResponseWriter, r *http.Request) {
 	login := r.FormValue("login")
 	pass := r.FormValue("password")

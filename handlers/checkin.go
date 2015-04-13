@@ -138,7 +138,12 @@ func Checkin(w http.ResponseWriter, r *http.Request) {
 	cis, _ := ci.Afters(c)
 
 	// NoSave for testing
-	if r.FormValue("nosave") == "" {
+	save := true
+	if r.FormValue("nosave") != "" {
+		save = false
+	}
+
+	if save {
 		// Too long until next class
 		if minTillStart > 15 {
 			p := pageCheckin{
@@ -178,14 +183,16 @@ func Checkin(w http.ResponseWriter, r *http.Request) {
 		p.Attendees = atts
 	}
 
-	// Push message to website viewers
-	var wsMsg ws.OutMsg
-	// wsMsg.Checkin.CiId = ci.Id
-	wsMsg.Checkin.Cis = cis
-	wsMsg.Checkin.Att.MinsEarly = minTillStart
-	s.Rfid = ""
-	wsMsg.Checkin.Att.Stu = s
-	ws.Wss.Broadcast(strings.ToLower(c.Name), wsMsg)
+	if save {
+		// Push message to website viewers
+		var wsMsg ws.OutMsg
+		// wsMsg.Checkin.CiId = ci.Id
+		wsMsg.Checkin.Cis = cis
+		wsMsg.Checkin.Att.MinsEarly = minTillStart
+		s.Rfid = ""
+		wsMsg.Checkin.Att.Stu = s
+		ws.Wss.Broadcast(strings.ToLower(c.Name), wsMsg)
+	}
 
 	writeJSON(w, r, p)
 }

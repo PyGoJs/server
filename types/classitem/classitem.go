@@ -84,6 +84,8 @@ WHERE s.end>=?
 	return ci, nil
 }
 
+// Afters gives a []ClassItem containing the classes after the given ci.
+// It only contains classes that are directly after the ci, and in the same facility.
 func (ci ClassItem) Afters(c class.Class) ([]ClassItem, error) {
 	cis := append([]ClassItem{}, ci)
 	fmt.Println(ci.YrWk)
