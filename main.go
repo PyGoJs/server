@@ -28,6 +28,9 @@ func main() {
 	http.Handle("/auth/login", logR(http.HandlerFunc(handlers.AuthLogin)))
 	http.Handle("/auth/checkkey", logR(http.HandlerFunc(handlers.AuthCheckKey)))
 
+	// Handlers - Misc
+	http.Handle("/", logR(http.HandlerFunc(handlers.Home)))
+
 	err := util.LoadConfig("config.json")
 	// LoadConfig (and lots of other methods) logs the error.
 	if err != nil {
@@ -46,6 +49,8 @@ func main() {
 	ws.Wss = ws.NewServer("/ws") // Not in seperate Goroutine, because it doesn't do db stuff
 
 	go auth.Run()
+
+	//fmt.Println(schedule.UpdateAll(time.Now()))
 
 	http.ListenAndServe(util.Cfg().Http.Addr, nil)
 

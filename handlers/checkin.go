@@ -110,7 +110,7 @@ func Checkin(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Student not checking into the facility/room he or she should be attending.
-	if ci.Sched.Fac != "" && ci.Sched.Fac != cl.Fac {
+	if ci.Sched.Fac != cl.Fac {
 		p := pageCheckin{
 			Accepted: false,
 			Error:    5,

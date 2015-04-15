@@ -77,6 +77,22 @@ func Update(c class.Class, tm time.Time) (bool, error) {
 	return change, nil
 }
 
+func UpdateAll(tm time.Time) error {
+	cs, err := class.FetchAll()
+	if err != nil {
+		return err
+	}
+
+	for _, c := range cs {
+		_, err = Update(c, tm)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 // fetchSched returns the live schedule, fetched from the API, as rawSched.
 func fetchSched(icsid, yr, wk int) (rawSched, error) {
 	url := fmt.Sprintf("http://xedule.novaember.com/weekschedule.%d.json?year=%d&week=%d", icsid, yr, wk)

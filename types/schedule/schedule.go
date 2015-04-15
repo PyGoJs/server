@@ -17,6 +17,7 @@ type Sched struct {
 // SchedItem contains the facts about a schedule item.
 type SchedItem struct {
 	Id       int       `json:"-"`
+	Cid      int       `json:"-"`
 	Day      int       `json:"day"`
 	StartInt int       `sql:"start" json:"start"`
 	Start    time.Time `json:"-"`

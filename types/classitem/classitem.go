@@ -26,16 +26,21 @@ type ClassItem struct {
 
 // NextC fetches and returns the next or current ClassItem for the given Class.
 func NextC(c class.Class, tm time.Time) (ClassItem, error) {
-	return next("AND s.cid="+strconv.Itoa(c.Id), tm)
+	cis, err := next("AND s.cid="+strconv.Itoa(c.Id), 1, tm)
+	if err != nil || len(cis) == 0 {
+		return ClassItem{}, err
+	}
+	return cis[0], err
+
 }
 
 // NextCl fetches and returns the next or current ClassItem for the given Client (facility).
-func NextCl(cl client.Client, tm time.Time) (ClassItem, error) {
-	return next("AND (s.facility = '"+cl.Fac+"' OR s.facility = '')", tm)
+func NextCl(cl client.Client, tm time.Time) ([]ClassItem, error) {
+	return next("AND s.facility = '"+cl.Fac+"'", 15, tm)
 }
 
 // next is used by NextC and NextCl for fetching the actual ClassItem.
-func next(sqlend string, tm time.Time) (ClassItem, error) {
+func next(sqlend string, limit int, tm time.Time) ([]ClassItem, error) {
 	// (Get the UnixTime from the start of this day and subtract is from the given tm.Unix,
 	//  so we end up with the amount of seconds since the start of the day.)
 	utsDay := time.Date(tm.Year(), tm.Month(), tm.Day(), 0, 0, 0, 0, util.Loc).Unix()
@@ -44,16 +49,9 @@ func next(sqlend string, tm time.Time) (ClassItem, error) {
 	yr, wk := tm.ISOWeek()
 	yrWk, _ := strconv.Atoi(strconv.Itoa(yr) + strconv.Itoa(wk))
 
-	var si schedule.SchedItem
-	var ci ClassItem
-
-	// It is not certain whether a classItem for the schedItem exists or not.
-	var ciId sql.NullInt64 // ClassItem.Id
-	var ciMs sql.NullInt64 // ClassItem.MaxStudents
-
 	// Get the sched with the end-time that is the closest to tm time (but is still in the future).
-	err := util.Db.QueryRow(`
-SELECT s.id, s.day, s.start, s.end, s.description, s.facility, s.staff, class_item.id, class_item.max_students
+	rows, err := util.Db.Query(`
+SELECT s.id, s.cid, s.day, s.start, s.end, s.description, s.facility, s.staff, class_item.id, class_item.max_students
 FROM schedule_item AS s
 LEFT JOIN class_item
 ON s.id = class_item.siid AND class_item.yearweek=?
@@ -61,34 +59,51 @@ WHERE s.end>=?
  AND s.day=?
  AND s.usestopped=0 
  `+sqlend+`
- ORDER BY s.start LIMIT 1;
-	`, yrWk, end, day).Scan(
-		&si.Id, &si.Day, &si.StartInt, &si.EndInt, &si.Desc, &si.Fac, &si.Staff, &ciId, &ciMs)
-
+ GROUP BY s.cid
+ ORDER BY s.start LIMIT `+strconv.Itoa(limit)+`;
+	`, yrWk, end, day)
 	if err != nil {
 		if err != sql.ErrNoRows {
 			log.Println("Error classitem.Fetch: ", err)
 		}
-		return ClassItem{}, err
+		return []ClassItem{}, err
 	}
 
-	if ciId.Valid {
-		ci.Id = int(ciId.Int64)
-		ci.MaxStus = int(ciMs.Int64)
-		ci.YrWk = yrWk
+	var cis []ClassItem
+
+	for rows.Next() {
+		var ci ClassItem
+		var si schedule.SchedItem
+
+		// It is not certain whether a classItem for the schedItem exists or not.
+		var ciId sql.NullInt64 // ClassItem.Id
+		var ciMs sql.NullInt64 // ClassItem.MaxStudents
+
+		err = rows.Scan(&si.Id, &si.Cid, &si.Day, &si.StartInt, &si.EndInt,
+			&si.Desc, &si.Fac, &si.Staff, &ciId, &ciMs)
+		if err != nil {
+			log.Println("ERROR while formatting ClassItem in next, err:", err)
+			continue
+		}
+
+		if ciId.Valid {
+			ci.Id = int(ciId.Int64)
+			ci.MaxStus = int(ciMs.Int64)
+			ci.YrWk = yrWk
+		}
+
+		si.Start = time.Unix(utsDay+int64(si.StartInt), 0)
+
+		ci.Sched = si
+		cis = append(cis, ci)
 	}
-
-	si.Start = time.Unix(utsDay+int64(si.StartInt), 0)
-
-	ci.Sched = si
-	return ci, nil
+	return cis, nil
 }
 
 // Afters gives a []ClassItem containing the classes after the given ci.
 // It only contains classes that are directly after the ci, and in the same facility.
 func (ci ClassItem) Afters(c class.Class) ([]ClassItem, error) {
 	cis := append([]ClassItem{}, ci)
-	fmt.Println(ci.YrWk)
 
 	rows, err := util.Db.Query(`
 SELECT s.id, s.day, s.start, s.end, s.description, s.facility, s.staff, class_item.id, class_item.max_students
@@ -140,12 +155,10 @@ WHERE s.start>=?
 
 		lastEnd = si.EndInt
 
-		fmt.Println("St00f", si)
 		if ciId.Valid {
 			tci.Id = int(ciId.Int64)
 			tci.MaxStus = int(ciMs.Int64)
 			tci.YrWk = ci.YrWk
-			fmt.Println("Yes")
 		}
 
 		tci.Sched = si

@@ -58,7 +58,4 @@ Errors given from /checkin :
   * Also given from /nextclass
 
 To do:
-+Check for race conditions in package client.
-+http /auth/checkkey
-+In /checkin Auto check-into the classes after the current class, if there are right after each other.
 ?Make yearweek for classitem be saved as 200601 instead of 20061
