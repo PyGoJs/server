@@ -3,6 +3,7 @@ package att
 import (
 	"database/sql"
 	"errors"
+	"fmt"
 	"log"
 	"strconv"
 	"strings"
@@ -49,50 +50,56 @@ func FetchStu(rfid string) (Stu, error) {
 
 // FetchAll returns the attendees for the given classitem.
 // Not (yet) attending students are also given.
-func FetchAll(ci classitem.ClassItem) ([]Att, error) {
+func FetchAll(cid int, isCiid bool) ([]Att, error) {
+
+	if cid == 0 {
+		log.Println("ERROR cid 0 in attendee.FetchAll")
+		return []Att{}, errors.New("cid may not be 0")
+	}
 
 	var atts []Att
-
-	// ClassItem can (or could) sometimes be empty, when fetched by classitem.Fetch
-	if ci.Id == 0 {
-		return atts, errors.New("cannot fetch attendees; invalid class_item")
-	}
-
-	// Fetch the attendee_item's and the students owning them.
-	rows, err := util.Db.Query("SELECT attendee_item.id, attendee_item.mins_early, student.id, student.name, student.rfid FROM student, attendee_item WHERE attendee_item.ciid=? AND attendee_item.sid = student.id;", ci.Id)
-
-	// It should only error during development, so I dare to 'handle' this error this way.
-	if err != nil {
-		log.Println("ERROR cannot fetch attendees in att.Fetchs, err:", err)
-		return atts, err
-	}
 
 	// Workaround, change it sometime (the '0').
 	// Contains the StudentID's that already have an attendee item, and should not be fetched with the second query.
 	sids := []string{"0"}
+	sql := `SELECT student.name, student.rfid FROM student
+WHERE student.cid = ` + strconv.Itoa(cid) + ` LIMIT 1337;`
 
-	// Loop over the fetched items, and put them into atts.
-	for rows.Next() {
-		var a Att
-		var s Stu
-		err = rows.Scan(&a.Id, &a.MinsEarly, &s.Id, &s.Name, &s.Rfid)
+	// ClassItem can (or could) sometimes be empty, when fetched by classitem.Fetch
+	if isCiid {
+		ciid := cid
+
+		// Fetch the attendee_item's and the students owning them.
+		rows, err := util.Db.Query("SELECT attendee_item.id, attendee_item.mins_early, student.id, student.name, student.rfid FROM student, attendee_item WHERE attendee_item.ciid=? AND attendee_item.sid = student.id;", cid)
+
+		// It should only error during development, so I dare to 'handle' this error this way.
 		if err != nil {
-			log.Fatal(err)
-			return []Att{}, err
+			log.Println("ERROR cannot fetch attendees in att.Fetchs, err:", err)
+			return atts, err
 		}
-		a.Attent = true
-		a.Stu = s
-		atts = append(atts, a)
-		sids = append(sids, strconv.Itoa(s.Id))
+
+		// Loop over the fetched items, and put them into atts.
+		for rows.Next() {
+			var a Att
+			var s Stu
+			err = rows.Scan(&a.Id, &a.MinsEarly, &s.Id, &s.Name, &s.Rfid)
+			if err != nil {
+				log.Fatal(err)
+				return []Att{}, err
+			}
+			a.Attent = true
+			a.Stu = s
+			atts = append(atts, a)
+			sids = append(sids, strconv.Itoa(s.Id))
+		}
+		sql = `SELECT student.name, student.rfid FROM student, class_item 
+WHERE class_item.id = ` + strconv.Itoa(ciid) + ` AND class_item.cid = student.cid AND class_item.yearweek >= student.createdyrwk
+AND student.id NOT IN (` + strings.Join(sids, ",") + `) LIMIT 1337;`
+		fmt.Println("Ciid", ciid)
 	}
 
 	// Fetch the students that did/are not attent this.
-	rows, err = util.Db.Query(
-		`SELECT student.name, student.rfid FROM student, class_item 
-WHERE class_item.id = ? AND class_item.cid = student.cid 
-AND class_item.yearweek >= student.createdyrwk
-AND student.id NOT IN (`+strings.Join(sids, ",")+`) LIMIT 1337;`,
-		ci.Id)
+	rows, err := util.Db.Query(sql)
 	if err != nil {
 		log.Println("ERROR cannot fetch students in att.Fetchs, err:", err)
 		return atts, err

@@ -58,4 +58,6 @@ Errors given from /checkin :
   * Also given from /nextclass
 
 To do:
++Fixed /nextclass (att.FetchAll) not giving students' list if no classitem.
+ Illness
 ?Make yearweek for classitem be saved as 200601 instead of 20061

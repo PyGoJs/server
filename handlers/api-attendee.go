@@ -6,7 +6,6 @@ import (
 
 	"github.com/pygojs/server/auth"
 	"github.com/pygojs/server/types/attendee"
-	"github.com/pygojs/server/types/classitem"
 )
 
 // ApiAttendee HTTP handler writes []att.Att for the attendees, and students that could be/can attending,
@@ -30,7 +29,7 @@ func ApiAttendee(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	atts, err := att.FetchAll(classitem.ClassItem{Id: ciid})
+	atts, err := att.FetchAll(ciid, true)
 	if err != nil {
 		p := pageErrorStr{
 			Error: "cannot fetching attendees",

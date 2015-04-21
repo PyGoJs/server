@@ -29,8 +29,8 @@ type pageCheckin struct {
 // pageCheckin is writen. MinTillStart and Attendees are only given when attendees (form value) is given.
 func Checkin(w http.ResponseWriter, r *http.Request) {
 	// This is not nice. Fix it.
-	util.LogS("%s checkin: %s:%s:%s:%s", util.Ip(*r), r.FormValue("clientid"),
-		r.FormValue("rfid"), r.FormValue("save"), r.FormValue("attendees"))
+	util.LogS("%s checkin: %s:%s:%s", util.Ip(*r), r.FormValue("clientid"),
+		r.FormValue("rfid"), r.FormValue("nosave"))
 
 	// Sleep for given amount of milliseconds when get variable 'sleep' is set.
 	// (Looks complicated (or just confusing) because of checking if valid int and time parsing.)
@@ -157,15 +157,19 @@ func Checkin(w http.ResponseWriter, r *http.Request) {
 
 		// Loop over the ClassItems that this Stu should be checked-into.
 		// (Think about doing this loop into ci.Create and s.Attent and just give a []ci and []s)
-		for _, ci := range cis {
+		for i, ci := range cis {
 			// Create the classItem if there is none.
 			if ci.Id == 0 {
-				ci, _ = ci.Create(c, tn)
+				ci.Create(c, tn)
 				fmt.Println(" ClassItem created, ", ci.Id, ci.MaxStus)
+			}
+			mts := 0
+			if i == 0 {
+				mts = minTillStart
 			}
 
 			// Make the Stu attent this class.
-			lastId := s.Attent(ci, minTillStart)
+			lastId := s.Attent(ci, mts)
 			if lastId != 0 {
 				ci.MaxStus++
 			}
@@ -179,7 +183,7 @@ func Checkin(w http.ResponseWriter, r *http.Request) {
 	// Give a list of attendees for this classItem if it is requested
 	if r.FormValue("attendees") != "" {
 		p.MinTillStart = minTillStart
-		atts, _ := att.FetchAll(ci)
+		atts, _ := att.FetchAll(ci.Id, true)
 		p.Attendees = atts
 	}
 

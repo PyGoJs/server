@@ -3,6 +3,7 @@ package classitem
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"log"
 	"strconv"
@@ -63,14 +64,13 @@ WHERE s.end>=?
  ORDER BY s.start LIMIT `+strconv.Itoa(limit)+`;
 	`, yrWk, end, day)
 	if err != nil {
-		if err != sql.ErrNoRows {
-			log.Println("Error classitem.Fetch: ", err)
-		}
+		log.Println("Error classitem.Fetch: ", err)
 		return []ClassItem{}, err
 	}
 
 	var cis []ClassItem
 
+	var count int
 	for rows.Next() {
 		var ci ClassItem
 		var si schedule.SchedItem
@@ -96,7 +96,13 @@ WHERE s.end>=?
 
 		ci.Sched = si
 		cis = append(cis, ci)
+		count++
 	}
+
+	if count == 0 {
+		return []ClassItem{}, errors.New("no more classes for today")
+	}
+
 	return cis, nil
 }
 
@@ -207,23 +213,22 @@ WHERE c.cid = ? AND c.yearweek = ? AND c.siid = s.id
 }
 
 // Create makes a new class_item for the given SchedItem in the database, and returns the ClassItem.
-func (ci ClassItem) Create(c class.Class, tm time.Time) (ClassItem, error) {
+func (ci *ClassItem) Create(c class.Class, tm time.Time) error {
 	yr, wk := tm.ISOWeek()
 
 	maxStu, _ := class.MaxStudents(c)
 	ci.MaxStus = maxStu
-	fmt.Println("SchedId", ci.Sched.Id)
 
 	r, err := util.Db.Exec("INSERT INTO class_item (siid, cid, max_students, yearweek) VALUES (?, ?, ?, ?);",
 		ci.Sched.Id, c.Id, maxStu, strconv.Itoa(yr)+strconv.Itoa(wk))
 
 	if err != nil {
 		log.Println("ERROR, cannot insert new class_item in classitem.Fetch, err:", err)
-		return ci, err
+		return err
 	}
 
 	id, _ := r.LastInsertId()
 	ci.Id = int(id)
 
-	return ci, nil
+	return nil
 }

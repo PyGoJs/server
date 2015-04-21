@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"fmt"
 	"net/http"
 	"time"
 
@@ -62,11 +63,20 @@ func NextClass(w http.ResponseWriter, r *http.Request) {
 	// (when facility is "" for example).
 	for _, ci := range cis {
 
-		atts, _ := att.FetchAll(ci)
-
 		minTillStart := int(ci.Sched.Start.Sub(tn).Minutes())
 
 		c, _ := class.Fetch(ci.Sched.Cid)
+
+		ciidB := true
+		id := ci.Id
+		if ci.Id == 0 {
+			ciidB = false
+			id = c.Id
+		}
+
+		atts, _ := att.FetchAll(id, ciidB)
+
+		fmt.Println(len(atts))
 
 		item := pageNextClassItem{
 			ci,
@@ -78,7 +88,7 @@ func NextClass(w http.ResponseWriter, r *http.Request) {
 		items = append(items, item)
 	}
 
-	p := pageNextClass{items}
+	// p := pageNextClass{items}
 
-	writeJSON(w, r, p)
+	writeJSON(w, r, items)
 }
