@@ -48,8 +48,10 @@ func FetchStu(rfid string) (Stu, error) {
 	return s, nil
 }
 
-// FetchAll returns the attendees for the given classitem.
+// FetchAll returns the attendees for the given class or classitem.
 // Not (yet) attending students are also given.
+// Cid can be either the Class id, or the ClassItem id.
+// If the last is the case, isCiid should be true.
 func FetchAll(cid int, isCiid bool) ([]Att, error) {
 
 	if cid == 0 {
@@ -60,17 +62,25 @@ func FetchAll(cid int, isCiid bool) ([]Att, error) {
 	var atts []Att
 
 	// Workaround, change it sometime (the '0').
-	// Contains the StudentID's that already have an attendee item, and should not be fetched with the second query.
+	// Contains the StudentID's that already have an attendee item,
+	// and should not be fetched with the second query.
 	sids := []string{"0"}
+
+	// SQL string for fetching students.
+	// Gets overwritten by another SQL string if there are attending students.
 	sql := `SELECT student.name, student.rfid FROM student
-WHERE student.cid = ` + strconv.Itoa(cid) + ` LIMIT 1337;`
+WHERE student.cid = ` + strconv.Itoa(cid) + ` ORDER BY student.name LIMIT 1337;`
 
 	// ClassItem can (or could) sometimes be empty, when fetched by classitem.Fetch
 	if isCiid {
 		ciid := cid
 
 		// Fetch the attendee_item's and the students owning them.
-		rows, err := util.Db.Query("SELECT attendee_item.id, attendee_item.mins_early, student.id, student.name, student.rfid FROM student, attendee_item WHERE attendee_item.ciid=? AND attendee_item.sid = student.id;", cid)
+		rows, err := util.Db.Query(`
+SELECT attendee_item.id, attendee_item.mins_early, student.id, student.name, student.rfid 
+FROM student, attendee_item 
+WHERE attendee_item.ciid=? AND attendee_item.sid = student.id 
+ORDER BY attendee_item.mins_early DESC, student.name;`, cid)
 
 		// It should only error during development, so I dare to 'handle' this error this way.
 		if err != nil {
@@ -92,11 +102,16 @@ WHERE student.cid = ` + strconv.Itoa(cid) + ` LIMIT 1337;`
 			atts = append(atts, a)
 			sids = append(sids, strconv.Itoa(s.Id))
 		}
-		sql = `SELECT student.name, student.rfid FROM student, class_item 
-WHERE class_item.id = ` + strconv.Itoa(ciid) + ` AND class_item.cid = student.cid AND class_item.yearweek >= student.createdyrwk
-AND student.id NOT IN (` + strings.Join(sids, ",") + `) LIMIT 1337;`
-		fmt.Println("Ciid", ciid)
+
+		// Change the SQL code for fetching the students, so only students not attending are fetched.
+		sql = `
+SELECT student.name, student.rfid FROM student, class_item 
+WHERE class_item.id = ` + strconv.Itoa(ciid) + ` AND class_item.cid = student.cid 
+	AND class_item.yearweek >= student.createdyrwk
+	AND student.id NOT IN (` + strings.Join(sids, ",") + `) ORDER BY student.name LIMIT 1337;`
 	}
+
+	fmt.Println("FetchAll:", isCiid, cid)
 
 	// Fetch the students that did/are not attent this.
 	rows, err := util.Db.Query(sql)

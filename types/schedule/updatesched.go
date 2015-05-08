@@ -2,7 +2,6 @@ package schedule
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -21,53 +20,75 @@ const rsDateTimeLayout = "Mon Jan 2 2006 15:04"
 
 const save = true
 
-// rawSched is a 'wrapper' containg an slice of rawSchedDay.
+// rawSched is used for Unmarshalling the schedule JSON from the API.
 type rawSched struct {
-	days []rawSchedDay
-}
-
-// rawSchedDay is used for Unmarshalling the schedule JSON from the API.
-type rawSchedDay struct {
-	Date   string
-	Events []struct {
-		Start       string
-		End         string
-		Classes     []string
-		Staffs      []string
-		Facilities  []string
-		Description string
+	Days []struct {
+		Day    time.Weekday
+		Events []struct {
+			Start   int64
+			End     int64
+			Desc    string
+			Classes []string
+			Facs    []string
+			Staffs  []string
+		}
 	}
 }
 
-// UpdateSched fetches the live schedule from the API,
-// and saves the changes in the database.
+const schedUrl = "http://xeduleapi.remi.im/schedule.json?aid=%d&year=%d&week=%d"
+
 func Update(c class.Class, tm time.Time) (bool, error) {
 	yr, wk := tm.ISOWeek()
-	// Next week if Saturday, or Friday from 5pm.
-	/*if tm.Day() == 6 || (tm.Day() == 5 && tm.Hour() >= 17) {
-		yr, wk = tm.Add(0, 0, 3).ISOWeek()
-	}*/
-	rs, err := fetchSched(c.IcsId, yr, wk)
+
+	resp, err := http.Get(fmt.Sprintf(schedUrl, c.Id, yr, wk))
 	if err != nil {
+		log.Println("ERROR fetching schedule:", err, c)
+		return false, err
+	}
+	defer resp.Body.Close()
+
+	cont, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		log.Println("ERROR reading from fetched schedule:", err, c)
 		return false, err
 	}
 
-	// rawSched to []SchedItem
-	sNew, err := rs.format()
-	if err != nil {
-		return false, err
+	var rs rawSched
+	json.Unmarshal(cont, &rs)
+
+	// Format the rawSched into a regular Sched.
+	var sNew Sched
+	for _, d := range rs.Days {
+		var utsDay int64
+		for _, e := range d.Events {
+			if utsDay == 0 {
+				utsDay = time.Date(tm.Year(), tm.Month(), tm.Day(), 0, 0, 0, 0, util.Loc).Unix()
+			}
+			sNew.Items = append(sNew.Items, SchedItem{
+				StartInt: int(e.Start - utsDay),
+				EndInt:   int(e.End - utsDay),
+				Start:    time.Unix(e.Start, 0),
+				Day:      int(d.Day),
+				Staff:    strings.Join(e.Staffs, ","),
+				Fac:      strings.Join(e.Facs, ","),
+				Desc:     e.Desc,
+			})
+		}
 	}
 
+	// Fetch the current/old schedule from the database.
 	sOld, err := FetchAll(c)
 	if err != nil {
 		return false, err
 	}
 
+	// Compare and save changes.
 	change, err := sNew.compareAndSave(sOld, c)
 	if err != nil {
 		return change, err
 	}
 
+	// Save current time as 'Schedule last fetched' time.
 	_, err = util.Db.Exec("UPDATE class SET schedlastfetched=? WHERE id=? LIMIT 1;", time.Now().Unix(), c.Id)
 	if err != nil {
 		log.Println("ERROR updating schedlastfetched of class, err:", err, c.Id)
@@ -91,75 +112,6 @@ func UpdateAll(tm time.Time) error {
 	}
 
 	return nil
-}
-
-// fetchSched returns the live schedule, fetched from the API, as rawSched.
-func fetchSched(icsid, yr, wk int) (rawSched, error) {
-	url := fmt.Sprintf("http://xedule.novaember.com/weekschedule.%d.json?year=%d&week=%d", icsid, yr, wk)
-
-	// Not needed anymore. Novaember (Darkwater) fixed it.
-	/* // Make Novaember reload the schedule first. (Returns an error instead of valid JSON, so refetch it)
-	_, err := http.Get(url + "&reload")
-	if err != nil {
-		log.Println("ERROR/Warning while fetching schedule, cannot tell Novaember to reload, err:", err)
-	}*/
-
-	res, err := http.Get(url)
-	if err != nil {
-		log.Println("ERROR while fetching schedule, err:", err)
-		return rawSched{}, err
-	}
-
-	cont, err := ioutil.ReadAll(res.Body)
-	defer res.Body.Close()
-
-	if err != nil {
-		log.Println("ERROR while parsing fetched schedule, err:", err)
-		return rawSched{}, err
-	}
-
-	var rs []rawSchedDay
-	err = json.Unmarshal(cont, &rs)
-
-	if err != nil {
-		log.Println("ERROR while unmarshaling fetched schedule, err:", err)
-		return rawSched{}, err
-	}
-
-	return rawSched{days: rs}, nil
-}
-
-// format takes a rawSched and returns it as Sched.
-func (rs rawSched) format() (Sched, error) {
-	var s Sched
-	var tmDay, tmStart, tmEnd time.Time
-	for _, d := range rs.days {
-		var err1, err2, err3 error
-		tmDay, err1 = time.Parse(rsDateLayout, d.Date)
-
-		for _, e := range d.Events {
-			tmStart, err2 = time.Parse(rsDateTimeLayout, d.Date+" "+e.Start)
-			tmStart = tmStart.In(util.Loc)
-			tmEnd, err3 = time.Parse(rsDateTimeLayout, d.Date+" "+e.End)
-			tmEnd = tmEnd.In(util.Loc)
-
-			s.Items = append(s.Items, SchedItem{
-				StartInt: int(tmStart.Unix() - tmDay.Unix()),
-				EndInt:   int(tmEnd.Unix() - tmDay.Unix()),
-				Day:      int(tmDay.Weekday()),
-				Staff:    strings.Join(e.Staffs, ","),
-				Fac:      strings.Join(e.Facilities, ","),
-				Desc:     e.Description,
-			})
-		}
-
-		if none, str := util.CheckErrs([]error{err1, err2, err3}); none == false {
-			fmt.Println("ERROR, Cannot format rawSched to []SchedItem: ", str)
-			return Sched{}, errors.New("cannot format rawSched to []SchedItem; " + str)
-		}
-	}
-
-	return s, nil
 }
 
 // compareAndSave saves the differences between the given siNew and siOld.

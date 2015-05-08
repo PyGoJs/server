@@ -10,7 +10,6 @@ import (
 type Class struct {
 	Id                  int       `json:"id"`
 	Name                string    `json:"name"`
-	IcsId               int       `json:"icsid"`
 	SchedLastFetched    time.Time `json:"-"`
 	SchedLastFetchedInt int64     `json:"-"`
 }
@@ -19,8 +18,8 @@ type Class struct {
 func Fetch(cid int) (Class, error) {
 	var c Class
 
-	err := util.Db.QueryRow("SELECT id, name, icsid, schedlastfetched FROM class WHERE id=? LIMIT 1;",
-		cid).Scan(&c.Id, &c.Name, &c.IcsId, &c.SchedLastFetchedInt)
+	err := util.Db.QueryRow("SELECT id, name, schedlastfetched FROM class WHERE id=? LIMIT 1;",
+		cid).Scan(&c.Id, &c.Name, &c.SchedLastFetchedInt)
 
 	if err != nil {
 		log.Println("ERROR; cannot fetch class, err:", err, cid)
@@ -41,7 +40,7 @@ func Fetch(cid int) (Class, error) {
 func FetchAll() ([]Class, error) {
 	var cs []Class
 
-	rows, err := util.Db.Query("SELECT id, name, icsid FROM class LIMIT 1337;")
+	rows, err := util.Db.Query("SELECT id, name FROM class LIMIT 1337;")
 
 	if err != nil {
 		log.Println("ERROR: cannot fetchall class, err:", err)
@@ -51,7 +50,7 @@ func FetchAll() ([]Class, error) {
 	for rows.Next() {
 		var c Class
 
-		err = rows.Scan(&c.Id, &c.Name, &c.IcsId)
+		err = rows.Scan(&c.Id, &c.Name)
 		if err != nil {
 			log.Println("ERROR while formatting Class in FetchAll, err:", err)
 			return cs, err

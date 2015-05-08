@@ -67,6 +67,7 @@ func NextClass(w http.ResponseWriter, r *http.Request) {
 
 		c, _ := class.Fetch(ci.Sched.Cid)
 
+		// id argument of att.FetchAll can either be the ciid or the cid.
 		ciidB := true
 		id := ci.Id
 		if ci.Id == 0 {

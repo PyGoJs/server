@@ -58,6 +58,7 @@ Errors given from /checkin :
   * Also given from /nextclass
 
 To do:
-+Fixed /nextclass (att.FetchAll) not giving students' list if no classitem.
- Illness
-?Make yearweek for classitem be saved as 200601 instead of 20061
++Correct order of attendees/students in att.FetchAll
++Change class id to correct ICS id, our 'own' class id is pretty much pointless.
++Change updatesched to get the data from own Xedule API.
+ Start and End timestamps in database are now proper UnixTime, instead of amount of seconds from start of the day.
