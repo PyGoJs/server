@@ -2,7 +2,7 @@ package ws
 
 import (
 	"github.com/pygojs/server/types/attendee"
-	"github.com/pygojs/server/types/classitem"
+	"github.com/pygojs/server/types/lesson"
 )
 
 // inMsg is what incomming messages from conns are put in.
@@ -19,7 +19,7 @@ type OutMsg struct {
 	Checkin struct { // Information about a check-in.
 		//CiId int          `json:"ciid"`
 		//Si   si.SchedItem `json:"si"`
-		Cis []classitem.ClassItem `json:"cis"`
-		Att att.Att               `json:"att"`
+		Ls  []lesson.Lesson `json:"ls"`
+		Att att.Att         `json:"att"`
 	} `json:"checkin,omitempty"`
 }

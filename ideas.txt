@@ -25,17 +25,24 @@ schedule_item // Every schedule/rooster item gets a new row in here. Old ones ar
   facility string // 6.55
   staff string // lam
 
-class_item // Every class with 'aanwezigen' gets a row. 
+lesson // Every class with 'attendees' gets a row. 
   id int, auto increment
   siid int // ScheduleItem id
   cid int // Class Id
   max_students int
   yearweek int(6) // Example: 201512, 20151
 
-attendee_item // Every person attending every class will get a new row here.
+attendee // Every person attending every class will get a new row here.
   id int, auto increment
-  ciid int // Class Item ID
+  lid int // Class Item ID
   sid int // Student ID
+  attent boolean // True if the student is currently in this lesson (will go to false when student leaves it in the middle, 
+  	but stays at true when student was in the lesson when it ended). Basicly the type of the latest event (check-in, manual check-out).
+
+attendee_item // For every 'event' of an attendee (check-in, check-out), a new row will be made here.
+  id int, auto increment
+  aid int // Attendee id
+  type int // 0: Check in, 1: Manually checked out
   mins_early int // Amount of minutes that the student was early. When student is too late it will become a negative int. 
 
 client
@@ -48,6 +55,7 @@ users
   login varchar(16)
   password varchar(64) // SHA256
 
+
 Errors given from /checkin :
   1: Student not found
   2: Too long till next class
@@ -58,7 +66,4 @@ Errors given from /checkin :
   * Also given from /nextclass
 
 To do:
-+Correct order of attendees/students in att.FetchAll
-+Change class id to correct ICS id, our 'own' class id is pretty much pointless.
-+Change updatesched to get the data from own Xedule API.
- Start and End timestamps in database are now proper UnixTime, instead of amount of seconds from start of the day.
+ Attendee, attendee_item

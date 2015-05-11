@@ -2,13 +2,12 @@ package att
 
 import (
 	"database/sql"
-	"errors"
 	"fmt"
 	"log"
 	"strconv"
 	"strings"
 
-	"github.com/pygojs/server/types/classitem"
+	"github.com/pygojs/server/types/lesson"
 	"github.com/pygojs/server/util"
 )
 
@@ -17,9 +16,15 @@ type Att struct {
 	Id int `json:"-"`
 	//Ciid int `json:"ciid,omitempty"`
 	//Sid       int  `json:",omitempty"`
-	Attent    bool `json:"attent"`
-	MinsEarly int  `sql:"mins_early" json:"minsEarly,omitempty"`
-	Stu       Stu  `json:"stu"`
+	Attent bool      `json:"attent"`
+	Stu    Stu       `json:"stu"`
+	Items  []AttItem `json:"items"`
+}
+
+// Attendee item, see Att
+type AttItem struct {
+	Type      int `json:"type"`
+	MinsEarly int `json:"minsEarly"`
 }
 
 // Student
@@ -38,7 +43,7 @@ func FetchStu(rfid string) (Stu, error) {
 	SELECT s.id, s.name, s.rfid, s.cid, c.name FROM student AS s, class AS c
 	WHERE s.rfid=? AND s.cid = c.id LIMIT 1;
 		`, rfid).Scan(&s.Id, &s.Name, &s.Rfid, &s.Cid, &c.Name)*/
-	err := util.Db.QueryRow("SELECT id, name, rfid, cid FROm student WHERE rfid=? LIMIT 1;", rfid).Scan(&s.Id, &s.Name, &s.Rfid, &s.Cid)
+	err := util.Db.QueryRow("SELECT id, name, rfid, cid FROM student WHERE rfid=? LIMIT 1;", rfid).Scan(&s.Id, &s.Name, &s.Rfid, &s.Cid)
 
 	if err != nil {
 		log.Println("Error student.Fetch:", err)
@@ -48,16 +53,11 @@ func FetchStu(rfid string) (Stu, error) {
 	return s, nil
 }
 
-// FetchAll returns the attendees for the given class or classitem.
+// FetchAll returns the attendees for the given class id or location id.
 // Not (yet) attending students are also given.
-// Cid can be either the Class id, or the ClassItem id.
-// If the last is the case, isCiid should be true.
-func FetchAll(cid int, isCiid bool) ([]Att, error) {
-
-	if cid == 0 {
-		log.Println("ERROR cid 0 in attendee.FetchAll")
-		return []Att{}, errors.New("cid may not be 0")
-	}
+// When class id is set (and location id is not) only the regular students
+// are given, with no attendee information.
+func FetchAll(cid int, lid int) ([]Att, error) {
 
 	var atts []Att
 
@@ -66,25 +66,22 @@ func FetchAll(cid int, isCiid bool) ([]Att, error) {
 	// and should not be fetched with the second query.
 	sids := []string{"0"}
 
-	// SQL string for fetching students.
-	// Gets overwritten by another SQL string if there are attending students.
-	sql := `SELECT student.name, student.rfid FROM student
-WHERE student.cid = ` + strconv.Itoa(cid) + ` ORDER BY student.name LIMIT 1337;`
+	fetchedAtts := false
 
-	// ClassItem can (or could) sometimes be empty, when fetched by classitem.Fetch
-	if isCiid {
-		ciid := cid
+	// // Lesson can (or could) sometimes be empty, when fetched by lesson.Fetch
+	if lid > 0 {
+		fetchedAtts = true
 
-		// Fetch the attendee_item's and the students owning them.
+		// Fetch the attendee's and the students owning them.
 		rows, err := util.Db.Query(`
-SELECT attendee_item.id, attendee_item.mins_early, student.id, student.name, student.rfid 
-FROM student, attendee_item 
-WHERE attendee_item.ciid=? AND attendee_item.sid = student.id 
-ORDER BY attendee_item.mins_early DESC, student.name;`, cid)
+SELECT attendee.id, attendee.attent, student.id, student.name, student.rfid 
+FROM student, attendee 
+WHERE attendee.lid=? AND attendee.sid = student.id 
+ORDER BY attendee.id IS NOT NULL, student.name;`, lid)
 
-		// It should only error during development, so I dare to 'handle' this error this way.
+		// It should only error during development, so I dare to 'handle' errors this way.
 		if err != nil {
-			log.Println("ERROR cannot fetch attendees in att.Fetchs, err:", err)
+			log.Println("ERROR cannot fetch attendees in att.FetchAll, err:", err)
 			return atts, err
 		}
 
@@ -92,26 +89,58 @@ ORDER BY attendee_item.mins_early DESC, student.name;`, cid)
 		for rows.Next() {
 			var a Att
 			var s Stu
-			err = rows.Scan(&a.Id, &a.MinsEarly, &s.Id, &s.Name, &s.Rfid)
+			var attent int
+
+			err = rows.Scan(&a.Id, &attent, &s.Id, &s.Name, &s.Rfid)
 			if err != nil {
-				log.Fatal(err)
+				log.Println("ERROR formatting attendee:", err)
 				return []Att{}, err
 			}
-			a.Attent = true
+
+			// (attent is a tinyint in database, but should be a boolean)
+			if attent > 0 {
+				a.Attent = true
+			}
+
 			a.Stu = s
+
+			rItems, err := util.Db.Query("SELECT type, mins_early FROM attendee_item WHERE aid=? ORDER BY mins_early DESC;", a.Id)
+			if err != nil {
+				log.Println("ERROR fetching attendee_items in FetchAll:", err, cid, lid)
+				return []Att{}, err
+			}
+
+			for rItems.Next() {
+				var ai AttItem
+				err = rItems.Scan(&ai.Type, &ai.MinsEarly)
+				if err != nil {
+					log.Println("ERROR formatting attendee_item:", err)
+					return []Att{}, err
+				}
+
+				a.Items = append(a.Items, ai)
+			}
+
 			atts = append(atts, a)
 			sids = append(sids, strconv.Itoa(s.Id))
 		}
 
-		// Change the SQL code for fetching the students, so only students not attending are fetched.
-		sql = `
-SELECT student.name, student.rfid FROM student, class_item 
-WHERE class_item.id = ` + strconv.Itoa(ciid) + ` AND class_item.cid = student.cid 
-	AND class_item.yearweek >= student.createdyrwk
-	AND student.id NOT IN (` + strings.Join(sids, ",") + `) ORDER BY student.name LIMIT 1337;`
 	}
 
-	fmt.Println("FetchAll:", isCiid, cid)
+	// SQL string for fetching students.
+	// Gets overwritten by another SQL string if there are attending students.
+	sql := `SELECT student.name, student.rfid FROM student
+WHERE student.cid = ` + strconv.Itoa(cid) + ` ORDER BY student.name LIMIT 1337;`
+
+	// Change the SQL code for fetching the students if there are atts, so only students not attending are fetched.
+	if fetchedAtts {
+		sql = `
+SELECT student.name, student.rfid FROM student, lesson 
+WHERE lesson.id = ` + strconv.Itoa(lid) + ` AND lesson.cid = student.cid 
+	AND lesson.yearweek >= student.createdyrwk
+	AND student.id NOT IN (` + strings.Join(sids, ",") + `) ORDER BY student.name LIMIT 1337;`
+
+	}
 
 	// Fetch the students that did/are not attent this.
 	rows, err := util.Db.Query(sql)
@@ -126,7 +155,7 @@ WHERE class_item.id = ` + strconv.Itoa(ciid) + ` AND class_item.cid = student.ci
 		var s Stu
 		err = rows.Scan(&s.Name, &s.Rfid)
 		if err != nil {
-			log.Fatal(err)
+			log.Println("ERROR formatting students:", err)
 			return []Att{}, err
 		}
 		a.Attent = false
@@ -137,50 +166,44 @@ WHERE class_item.id = ` + strconv.Itoa(ciid) + ` AND class_item.cid = student.ci
 	return atts, nil
 }
 
-// Attent makes the given student attent the given classitem.
+// Attent makes the given student attent the given lesson.
 // MinutesEarly is positive when the class is about to start, negative if the student is not on time.
-// The ID of the new attendee_item is returned.
-func (s Stu) Attent(ci classitem.ClassItem, minsEarly int) int64 {
-	// Note: Uncomment things to make it work on a []ClassItem.
-	// Change the argument 'ci ClassItem' to 'cis []ClassItem'.
-
-	/*if len(cis) == 0 {
-		return 0
-	}*/
-
-	var firstId int64
-	//for _, ci := range cis {
-	if ci.Id == 0 {
-		log.Println("ClassItem Id is 0")
+// The ID of the new attendee is returned.
+func (s Stu) Attent(l lesson.Lesson, minsEarly int) int64 {
+	// I think there might be a way to fetch lesson without the ID?
+	if l.Id == 0 {
+		log.Println("Lesson Id is 0")
 		return 0
 	}
 
-	r, err := util.Db.Exec("INSERT INTO attendee_item (ciid, sid, mins_early) VALUES (?, ?, ?);", ci.Id, s.Id, minsEarly)
+	// Create the attentee row.
+	r, err := util.Db.Exec("INSERT INTO attendee (lid, sid, attent) VALUES (?, ?, 1);", l.Id, s.Id)
 	if err != nil {
-		log.Fatal(err)
-		//continue
+		log.Println("ERROR creating attendee in Attent:", err, s, l)
 		return 0
 	}
 
-	//if firstId == 0 {
-	firstId, _ = r.LastInsertId()
-	//}
-	//}
-	return firstId
+	aid, _ := r.LastInsertId()
+
+	// Create the attendee_item row.
+	_, err = util.Db.Exec("INSERT INTO attendee_item (aid, type, mins_early) VALUES (?, 0, ?);", aid, minsEarly)
+	if err != nil {
+		log.Println("ERROR creating attendee item in Attent:", err, s, l)
+		return 0
+	}
+
+	return aid
 }
 
-// IsAttending returns the ID of the attendee_item of the given Stu, for the given classItem.
-// Given ID is zero if the Stu is not attending the classItem.
-func (s Stu) IsAttending(ci classitem.ClassItem) (int, error) {
+// IsAttending returns the ID of the given Stu's attendee, for the given lesson.
+// Returned ID is zero if the Stu is not attending the lesson.
+func (s Stu) IsAttending(l lesson.Lesson) (int, error) {
 	var id int
 
-	err := util.Db.QueryRow("SELECT id FROM attendee_item WHERE sid=? AND ciid=? LIMIT 1;", s.Id, ci.Id).Scan(&id)
+	err := util.Db.QueryRow("SELECT id FROM attendee WHERE sid=? AND lid=? LIMIT 1;", s.Id, l.Id).Scan(&id)
 
-	if err != nil {
-		if err != sql.ErrNoRows {
-			log.Println("ERROR while checking is student is attendee class_item, err:",
-				err, s.Id, ci.Id)
-		}
+	if err != nil && err != sql.ErrNoRows {
+		log.Println("ERROR while checking is student is attendee lesson, err:", err, s.Id, l.Id)
 		return 0, err
 	}
 

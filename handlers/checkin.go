@@ -10,8 +10,8 @@ import (
 
 	"github.com/pygojs/server/types/attendee"
 	"github.com/pygojs/server/types/class"
-	"github.com/pygojs/server/types/classitem"
 	"github.com/pygojs/server/types/client"
+	"github.com/pygojs/server/types/lesson"
 	"github.com/pygojs/server/types/schedule"
 	"github.com/pygojs/server/util"
 	"github.com/pygojs/server/ws"
@@ -90,16 +90,16 @@ func Checkin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Update the schedule if it was last fetched >=30 minutes ago.
-	if tn.Sub(c.SchedLastFetched).Minutes() >= 30 {
+	// Update the schedule if it was last fetched >=15 minutes ago.
+	if tn.Sub(c.SchedLastFetched).Minutes() >= 15 {
 		change, _ := schedule.Update(c, tn)
 		fmt.Println(" Schedule updated,", change)
 	}
 
-	// ClassItem, includes SchedItem. ClassItem can be empty, SchedItem may not.
-	ci, err := classitem.NextC(c, tn)
+	// Lesson, includes SchedItem. Lesson can be empty, SchedItem may not.
+	l, err := lesson.NextC(c, tn)
 
-	// ClassItem/ScheduleItem not found (no more classes today?).
+	// Lesson/ScheduleItem not found (no more classes today?).
 	if err != nil {
 		p := pageCheckin{
 			Accepted: false,
@@ -110,7 +110,7 @@ func Checkin(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Student not checking into the facility/room he or she should be attending.
-	if ci.Sched.Fac != cl.Fac {
+	if l.Sched.Fac != cl.Fac {
 		p := pageCheckin{
 			Accepted: false,
 			Error:    5,
@@ -121,8 +121,8 @@ func Checkin(w http.ResponseWriter, r *http.Request) {
 
 	// Check if this student is already attending this class_item.
 	// When ci.Id is 0 nobody is (and can be) attending the class (up to now), so no need to check.
-	if ci.Id != 0 {
-		if id, _ := s.IsAttending(ci); id != 0 {
+	if l.Id != 0 {
+		if id, _ := s.IsAttending(l); id != 0 {
 			p := pageCheckin{
 				Accepted: false,
 				Error:    3,
@@ -132,10 +132,10 @@ func Checkin(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	minTillStart := int(ci.Sched.Start.Sub(tn).Minutes())
+	minTillStart := int(l.Sched.Start.Sub(tn).Minutes())
 
-	// ClassItemsAfter
-	cis, _ := ci.Afters(c)
+	// LessonsAfter
+	ls, _ := l.Afters(c)
 
 	// NoSave for testing
 	save := true
@@ -155,13 +155,13 @@ func Checkin(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		// Loop over the ClassItems that this Stu should be checked-into.
+		// Loop over the Lessons that this Stu should be checked-into.
 		// (Think about doing this loop into ci.Create and s.Attent and just give a []ci and []s)
-		for i, ci := range cis {
+		for i, l := range ls {
 			// Create the classItem if there is none.
-			if ci.Id == 0 {
-				ci.Create(c, tn)
-				fmt.Println(" ClassItem created, ", ci.Id, ci.MaxStus)
+			if l.Id == 0 {
+				l.Create(c, tn)
+				fmt.Println(" Lesson created, ", l.Id, l.MaxStus)
 			}
 			mts := 0
 			if i == 0 {
@@ -169,9 +169,9 @@ func Checkin(w http.ResponseWriter, r *http.Request) {
 			}
 
 			// Make the Stu attent this class.
-			lastId := s.Attent(ci, mts)
+			lastId := s.Attent(l, mts)
 			if lastId != 0 {
-				ci.MaxStus++
+				l.MaxStus++
 			}
 		}
 	}
@@ -183,7 +183,7 @@ func Checkin(w http.ResponseWriter, r *http.Request) {
 	// Give a list of attendees for this classItem if it is requested
 	if r.FormValue("attendees") != "" {
 		p.MinTillStart = minTillStart
-		atts, _ := att.FetchAll(ci.Id, true)
+		atts, _ := att.FetchAll(0, l.Id)
 		p.Attendees = atts
 	}
 
@@ -191,8 +191,10 @@ func Checkin(w http.ResponseWriter, r *http.Request) {
 		// Push message to website viewers
 		var wsMsg ws.OutMsg
 		// wsMsg.Checkin.CiId = ci.Id
-		wsMsg.Checkin.Cis = cis
-		wsMsg.Checkin.Att.MinsEarly = minTillStart
+		wsMsg.Checkin.Ls = ls
+		wsMsg.Checkin.Att.Items = append(wsMsg.Checkin.Att.Items, att.AttItem{
+			MinsEarly: minTillStart,
+		})
 		s.Rfid = ""
 		wsMsg.Checkin.Att.Stu = s
 		ws.Wss.Broadcast(strings.ToLower(c.Name), wsMsg)

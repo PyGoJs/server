@@ -7,20 +7,20 @@ import (
 
 	"github.com/pygojs/server/types/attendee"
 	"github.com/pygojs/server/types/class"
-	"github.com/pygojs/server/types/classitem"
 	"github.com/pygojs/server/types/client"
+	"github.com/pygojs/server/types/lesson"
 	"github.com/pygojs/server/util"
 )
 
-type pageNextClassItem struct {
-	classitem.ClassItem
+type pageNextLesson struct {
+	lesson.Lesson
 	MinTillStart int         `json:"mintillstart"`
 	Class        class.Class `json:"class"`
 	Attendees    []att.Att   `json:"attendees"`
 }
 
 type pageNextClass struct {
-	Items []pageNextClassItem `json:"items"`
+	Items []pageNextLesson `json:"items"`
 }
 
 // NextClass HTTP handler writes pageNextClass as JSON,
@@ -45,7 +45,7 @@ func NextClass(w http.ResponseWriter, r *http.Request) {
 		tn = util.Cfg().Debug.Tm
 	}
 
-	cis, err := classitem.NextCl(cl, tn)
+	ls, err := lesson.NextCl(cl, tn)
 
 	// Schedule item not found (no more classes for today)
 	if err != nil {
@@ -56,31 +56,29 @@ func NextClass(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var items []pageNextClassItem
+	var items []pageNextLesson
 
 	// Loop over the class/schedule-items.
 	// There might be multiple classes in the same facility
 	// (when facility is "" for example).
-	for _, ci := range cis {
+	for _, l := range ls {
 
-		minTillStart := int(ci.Sched.Start.Sub(tn).Minutes())
+		minTillStart := int(l.Sched.Start.Sub(tn).Minutes())
 
-		c, _ := class.Fetch(ci.Sched.Cid)
+		c, _ := class.Fetch(l.Sched.Cid)
 
-		// id argument of att.FetchAll can either be the ciid or the cid.
-		ciidB := true
-		id := ci.Id
-		if ci.Id == 0 {
-			ciidB = false
-			id = c.Id
+		lid := l.Id
+		cid := 0
+		if l.Id == 0 {
+			cid = c.Id
 		}
 
-		atts, _ := att.FetchAll(id, ciidB)
+		atts, _ := att.FetchAll(cid, lid)
 
 		fmt.Println(len(atts))
 
-		item := pageNextClassItem{
-			ci,
+		item := pageNextLesson{
+			l,
 			minTillStart,
 			c,
 			atts,

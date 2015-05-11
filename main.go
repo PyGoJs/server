@@ -21,7 +21,7 @@ func main() {
 
 	// Handlers - Api
 	http.Handle("/api/class", logR(http.HandlerFunc(handlers.ApiClass)))
-	http.Handle("/api/classitem", logR(http.HandlerFunc(handlers.ApiClassItem)))
+	http.Handle("/api/lesson", logR(http.HandlerFunc(handlers.ApiClassItem)))
 	http.Handle("/api/attendee", logR(http.HandlerFunc(handlers.ApiAttendee)))
 
 	// Handlers - Auth

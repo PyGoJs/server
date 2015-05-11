@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/pygojs/server/types/classitem"
+	"github.com/pygojs/server/types/lesson"
 )
 
 // ApiClassItem HTTP handler writes []classitem.ClassItem for the given cid (class id)
@@ -28,7 +28,7 @@ func ApiClassItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cis, err := classitem.FetchAll(cid, yr)
+	ls, err := lesson.FetchAll(cid, yr)
 	if err != nil {
 		p := pageErrorStr{
 			Error: "cannot fetch class items",
@@ -37,5 +37,5 @@ func ApiClassItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, r, cis)
+	writeJSON(w, r, ls)
 }

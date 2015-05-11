@@ -14,10 +14,6 @@ import (
 	"github.com/pygojs/server/util"
 )
 
-// Time layouts for the fetched rawSchedule
-const rsDateLayout = "Mon Jan 2 2006"
-const rsDateTimeLayout = "Mon Jan 2 2006 15:04"
-
 const save = true
 
 // rawSched is used for Unmarshalling the schedule JSON from the API.
@@ -35,7 +31,7 @@ type rawSched struct {
 	}
 }
 
-const schedUrl = "http://xeduleapi.remi.im/schedule.json?aid=%d&year=%d&week=%d"
+const schedUrl = "http://xeduleapi.remi.im/schedule.json?aid=%d&year=%d&week=%d&nocache=true"
 
 func Update(c class.Class, tm time.Time) (bool, error) {
 	yr, wk := tm.ISOWeek()

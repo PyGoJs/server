@@ -19,17 +19,17 @@ func ApiAttendee(w http.ResponseWriter, r *http.Request) {
 		return
 	}*/
 
-	var ciid int
+	var lid int
 
-	if ciid, _ = strconv.Atoi(r.FormValue("ciid")); ciid == 0 {
+	if lid, _ = strconv.Atoi(r.FormValue("lid")); lid == 0 {
 		p := pageErrorStr{
-			Error: "invalid ciid (class item id)",
+			Error: "invalid lid (l id)",
 		}
 		writeJSON(w, r, p)
 		return
 	}
 
-	atts, err := att.FetchAll(ciid, true)
+	atts, err := att.FetchAll(0, lid)
 	if err != nil {
 		p := pageErrorStr{
 			Error: "cannot fetching attendees",
