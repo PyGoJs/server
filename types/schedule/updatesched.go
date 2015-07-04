@@ -19,19 +19,26 @@ const save = true
 // rawSched is used for Unmarshalling the schedule JSON from the API.
 type rawSched struct {
 	Days []struct {
-		Day    time.Weekday
-		Events []struct {
-			Start   int64
-			End     int64
-			Desc    string
-			Classes []string
-			Facs    []string
-			Staffs  []string
+		Day     time.Weekday
+		BaseUts int64
+		Events  []struct {
+			Start int
+			End   int
+			Desc  string
+			Atts  []int
+			//Classes []string
+			//Facs    []string
+			//Staffs  []string
 		}
+	}
+
+	Atts map[string]struct {
+		Name string
+		Type int
 	}
 }
 
-const schedUrl = "http://xeduleapi.remi.im/schedule.json?aid=%d&year=%d&week=%d&nocache=true"
+const schedUrl = "http://dev.xeduleapi.remi.im/schedule.json?aid=%d&year=%d&week=%d&nocache=true"
 
 func Update(c class.Class, tm time.Time) (bool, error) {
 	yr, wk := tm.ISOWeek()
@@ -56,17 +63,29 @@ func Update(c class.Class, tm time.Time) (bool, error) {
 	var sNew Sched
 	for _, d := range rs.Days {
 		var utsDay int64
+		var tmDay time.Time
 		for _, e := range d.Events {
 			if utsDay == 0 {
-				utsDay = time.Date(tm.Year(), tm.Month(), tm.Day(), 0, 0, 0, 0, util.Loc).Unix()
+				tmDay = time.Unix(d.BaseUts, 0)
+				utsDay = time.Date(tmDay.Year(), tmDay.Month(), tmDay.Day(), 0, 0, 0, 0, util.Loc).Unix()
+			}
+			var staffs, facs []string
+			for _, a := range e.Atts {
+				att := rs.Atts[strconv.Itoa(a)]
+				switch att.Type {
+				case 2:
+					staffs = append(staffs, att.Name)
+				case 3:
+					facs = append(facs, att.Name)
+				}
 			}
 			sNew.Items = append(sNew.Items, SchedItem{
-				StartInt: int(e.Start - utsDay),
-				EndInt:   int(e.End - utsDay),
-				Start:    time.Unix(e.Start, 0),
+				StartInt: e.Start,
+				EndInt:   e.End,
+				Start:    time.Unix(int64(e.Start)+utsDay, 0),
 				Day:      int(d.Day),
-				Staff:    strings.Join(e.Staffs, ","),
-				Fac:      strings.Join(e.Facs, ","),
+				Staff:    strings.Join(staffs, ","),
+				Fac:      strings.Join(facs, ","),
 				Desc:     e.Desc,
 			})
 		}

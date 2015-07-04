@@ -2,7 +2,6 @@ package att
 
 import (
 	"database/sql"
-	"fmt"
 	"log"
 	"strconv"
 	"strings"
@@ -35,7 +34,7 @@ type Stu struct {
 	Cid  int    `json:"-"`
 }
 
-// Fetch returns the student with the given rfid.
+// FetchStu returns the student with the given rfid.
 func FetchStu(rfid string) (Stu, error) {
 	var s Stu
 
@@ -105,6 +104,7 @@ ORDER BY attendee.id IS NOT NULL, student.name;`, lid)
 			a.Stu = s
 
 			rItems, err := util.Db.Query("SELECT type, mins_early FROM attendee_item WHERE aid=? ORDER BY mins_early DESC;", a.Id)
+
 			if err != nil {
 				log.Println("ERROR fetching attendee_items in FetchAll:", err, cid, lid)
 				return []Att{}, err

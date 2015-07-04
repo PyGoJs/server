@@ -91,10 +91,10 @@ func Checkin(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Update the schedule if it was last fetched >=15 minutes ago.
-	if tn.Sub(c.SchedLastFetched).Minutes() >= 15 {
-		change, _ := schedule.Update(c, tn)
-		fmt.Println(" Schedule updated,", change)
-	}
+	//if tn.Sub(c.SchedLastFetched).Minutes() >= 15 {
+	change, _ := schedule.Update(c, tn)
+	fmt.Println(" Schedule updated,", change)
+	//}
 
 	// Lesson, includes SchedItem. Lesson can be empty, SchedItem may not.
 	l, err := lesson.NextC(c, tn)
@@ -108,6 +108,8 @@ func Checkin(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, r, p)
 		return
 	}
+
+	fmt.Println(l)
 
 	// Student not checking into the facility/room he or she should be attending.
 	if l.Sched.Fac != cl.Fac {

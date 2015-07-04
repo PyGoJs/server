@@ -1,6 +1,8 @@
-Server for a small school project that aims to provide a way for students to check into classes with their school card, without teachers having to set them as 'attended' manually.
+Server for a small school project that aimed to provide a way for students to check into classes with their school card, without teachers having to set them as 'attended' manually.
 
 This project will not be used in production. It's just for learning purposes for the creators. 
+
+See db.sql for database structure. 
 
 ###Tasks the server is responsible for
 ####Check-in's
@@ -9,12 +11,13 @@ This project will not be used in production. It's just for learning purposes for
     * Server has a list of clients containing the facility (classroom) the client is located at. 
     * Server needs to know the current schedule for classes.
     * Server needs to make sure the schedules are up to date (as far as a 30 minute cache can be called up to date).
-    * Server has a list of students (and creates attendees) and classes (and creates lessons/class_items).
+    * Server has a list of students (and creates attendees) and classes (and creates lessons).
 
 ####API
 * Give the website access to information about classes, lessons and attendee's.
-    * See HTTP handler /api/class, /api/class_item and /api/attendee .
+    * See HTTP handler /api/class, /api/lesson and /api/attendee .
 * Lock the attendee information for the website behind basic authentication (login).
+* Inform web-clients when someone checks into the class currently viewing (websockets).
 
 ###Errors given from /checkin for the client
 1. Student not found

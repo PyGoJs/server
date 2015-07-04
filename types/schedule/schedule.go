@@ -16,11 +16,11 @@ type Sched struct {
 
 // SchedItem contains the facts about a schedule item.
 type SchedItem struct {
-	Id       int `json:"-"`
-	Cid      int `json:"-"`
-	Day      int `json:"day"`
-	StartInt int
-	EndInt   int
+	Id       int       `json:"-"`
+	Cid      int       `json:"-"`
+	Day      int       `json:"day"`
+	StartInt int       `json:"start"`
+	EndInt   int       `json:"end"`
 	Start    time.Time `json:"-"` // Used for determining minTillStart
 	Created  int       `json:"-"`
 	Desc     string    `sql:"description" json:"desc"`

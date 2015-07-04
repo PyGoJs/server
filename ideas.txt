@@ -1,61 +1,3 @@
-DB structure:
-
-class // Every class (e.q. b-itb4-1c) gets their own row here
-  id int, auto increment
-  name string // b-itb4-1c
-  icsid int // Id needed to fetch the schedule, 14327
-  schedlastfetched int // UnixTime of when this class' schedule was fetched/updated.
-
-student
-  id int, auto increment
-  name string // Voornaam
-  rfid varchar(255) // Not sure what length it is going to be. 
-  cid int // ClassId
-  created int(6) // YearWeek of when student got created (added to current class). (e.q. 201513, 20151)
-  //telaatpas bool
-
-schedule_item // Every schedule/rooster item gets a new row in here. Old ones are kept. 
-  id int, auto increment
-  cid int // Class ID
-  start int // Amount of seconds since start of the day when the item starts. 
-  end int // See above (but now for the end of the item)
-  created int // UnixTime when this item for created 
-  usestopped int // UnixTime when this item has become deprecated. (items that are currently used have got a value of 0 for this)
-  description string // ned,daa,prg, etc
-  facility string // 6.55
-  staff string // lam
-
-lesson // Every class with 'attendees' gets a row. 
-  id int, auto increment
-  siid int // ScheduleItem id
-  cid int // Class Id
-  max_students int
-  yearweek int(6) // Example: 201512, 20151
-
-attendee // Every person attending every class will get a new row here.
-  id int, auto increment
-  lid int // Class Item ID
-  sid int // Student ID
-  attent boolean // True if the student is currently in this lesson (will go to false when student leaves it in the middle, 
-  	but stays at true when student was in the lesson when it ended). Basicly the type of the latest event (check-in, manual check-out).
-
-attendee_item // For every 'event' of an attendee (check-in, check-out), a new row will be made here.
-  id int, auto increment
-  aid int // Attendee id
-  type int // 0: Check in, 1: Manually checked out
-  mins_early int // Amount of minutes that the student was early. When student is too late it will become a negative int. 
-
-client
-  id int, auto increment
-  secret varchar(64) // SHA256, kind of like a password and login in once
-  facility string
-
-users
-  id int, auto increment
-  login varchar(16)
-  password varchar(64) // SHA256
-
-
 Errors given from /checkin :
   1: Student not found
   2: Too long till next class
@@ -66,4 +8,6 @@ Errors given from /checkin :
   * Also given from /nextclass
 
 To do:
- Attendee, attendee_item
++Changes to updatesched because of changes in Xedule API. (2015-06-06)
++Checks for valid session/auth now in place again (api-attendee).
+ Committing some files that haven't been committed yet.
